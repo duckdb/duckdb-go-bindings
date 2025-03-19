@@ -120,10 +120,8 @@ fetch.static.lib.mingw:
 	rm -rf libs && \
 	mkdir libs && \
 	rm -f duckdb.h && \
-	unzip duckdb-static-lib-windows-mingw.zip && \
 	unzip static-lib-windows-mingw.zip && \
 	mv libduckdb_bundle.a libs/libduckdb.a && \
-	rm -f duckdb-static-lib-windows-mingw.zip && \
 	rm -f static-lib-windows-mingw.zip
 
 update.binding:
