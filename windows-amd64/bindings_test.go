@@ -1,6 +1,7 @@
 package duckdb_go_bindings
 
 import (
+	"fmt"
 	"net/url"
 	"strings"
 	"testing"
@@ -29,6 +30,8 @@ func TestOpenDB(t *testing.T) {
 		Close(&db)
 		panic("error")
 	}
+	fmt.Println("anything went wrong?")
+	fmt.Println(errMsg)
 }
 
 func getConnString(dsn string) string {
