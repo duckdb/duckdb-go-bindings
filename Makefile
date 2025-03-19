@@ -116,7 +116,7 @@ fetch.static.lib:
 
 fetch.static.lib.mingw:
 	cd ${DIRECTORY} && \
-	curl -OL https://github.com/taniabogatsch/duckdb/releases/download/v1.2.0-mingw/duckdb-static-lib-windows-mingw.zip && \
+	curl -OL https://github.com/taniabogatsch/duckdb/releases/download/v1.2.1-mingw/duckdb-static-lib-windows-mingw.zip && \
 	rm -rf libs && \
 	mkdir libs && \
 	rm -f duckdb.h && \
