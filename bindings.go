@@ -3,15 +3,70 @@ package duckdb_go_bindings
 /*
 #include <duckdb.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <duckdb_go_bindings.h>
+
+#ifndef ARROW_C_DATA_INTERFACE
+#define ARROW_C_DATA_INTERFACE
+
+#define ARROW_FLAG_DICTIONARY_ORDERED 1
+#define ARROW_FLAG_NULLABLE 2
+#define ARROW_FLAG_MAP_KEYS_SORTED 4
+
+struct ArrowSchema {
+  // Array type description
+  const char* format;
+  const char* name;
+  const char* metadata;
+  int64_t flags;
+  int64_t n_children;
+  struct ArrowSchema** children;
+  struct ArrowSchema* dictionary;
+
+  // Release callback
+  void (*release)(struct ArrowSchema*);
+  // Opaque producer-specific data
+  void* private_data;
+};
+
+struct ArrowArray {
+  // Array data description
+  int64_t length;
+  int64_t null_count;
+  int64_t offset;
+  int64_t n_buffers;
+  int64_t n_children;
+  const void** buffers;
+  struct ArrowArray** children;
+  struct ArrowArray* dictionary;
+
+  // Release callback
+  void (*release)(struct ArrowArray*);
+  // Opaque producer-specific data
+  void* private_data;
+};
+
+struct ArrowArrayStream {
+	void (*get_schema)(struct ArrowArrayStream*);
+	void (*get_next)(struct ArrowArrayStream*);
+	void (*get_last_error)(struct ArrowArrayStream*);
+	void (*release)(struct ArrowArrayStream*);
+	void* private_data;
+};
+
+#endif  // ARROW_C_DATA_INTERFACE
 */
 import "C"
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"sync"
 	"unsafe"
+
+	"github.com/apache/arrow-go/v18/arrow"
+	"github.com/apache/arrow-go/v18/arrow/cdata"
 )
 
 // ------------------------------------------------------------------ //
@@ -3660,15 +3715,95 @@ func TableDescriptionGetColumnName(desc TableDescription, index IdxT) string {
 	return C.GoString(cName)
 }
 
+// --------------------------------------------------- //
+// Arrow Interface (the new C API bindings)
+// --------------------------------------------------- //
+
+// NewArrowSchema creates a new ArrowSchema from an array of DuckDB logical types and column names.
+func NewArrowSchema(options *ArrowOptions, types []LogicalType, names []string) (*arrow.Schema, error) {
+	cTypes := allocLogicalTypes(types)
+	defer Free(unsafe.Pointer(cTypes))
+
+	cNames := allocNames(names)
+	defer Free(unsafe.Pointer(cNames))
+
+	arr := C.calloc(1, C.sizeof_struct_ArrowSchema)
+	defer func() {
+		cdata.ReleaseCArrowSchema((*cdata.CArrowSchema)(arr))
+		C.free(arr)
+	}()
+
+	ed := C.duckdb_to_arrow_schema(options.data(), cTypes, cNames, C.idx_t(len(names)), (*C.struct_ArrowSchema)(arr))
+	errData := ErrorData{Ptr: unsafe.Pointer(ed)}
+	defer DestroyErrorData(&errData)
+	if ErrorDataHasError(errData) {
+		return nil, errors.New(ErrorDataMessage(errData))
+	}
+	return cdata.ImportCArrowSchema((*cdata.CArrowSchema)(arr))
+}
+
+// DataChunkToArrowArray converts a DuckDB DataChunk to an Arrow RecordBatch using the provided ArrowOptions and schema.
+func DataChunkToArrowArray(options *ArrowOptions, schema *arrow.Schema, chunk *DataChunk) (arrow.RecordBatch, error) {
+	arr := C.calloc(1, C.sizeof_struct_ArrowArray)
+	defer func() {
+		cdata.ReleaseCArrowArray((*cdata.CArrowArray)(arr))
+		C.free(arr)
+	}()
+
+	ed := C.duckdb_data_chunk_to_arrow(options.data(), chunk.data(), (*C.struct_ArrowArray)(arr))
+	errData := ErrorData{Ptr: unsafe.Pointer(ed)}
+	defer DestroyErrorData(&errData)
+	if ErrorDataHasError(errData) {
+		return nil, errors.New(ErrorDataMessage(errData))
+	}
+	return cdata.ImportCRecordBatchWithSchema((*cdata.CArrowArray)(arr), schema)
+}
+
+// SchemaFromArrow converts an Arrow Schema to a DuckDB ArrowConvertedSchema using the provided Connection.
+func SchemaFromArrow(conn Connection, schema *arrow.Schema) (*ArrowConvertedSchema, error) {
+	arr := C.calloc(1, C.sizeof_struct_ArrowSchema)
+	cdata.ExportArrowSchema(schema, (*cdata.CArrowSchema)(arr))
+	defer func() {
+		cdata.ReleaseCArrowSchema((*cdata.CArrowSchema)(arr))
+		C.free(arr)
+	}()
+
+	convertedSchema := C.calloc(1, C.sizeof_duckdb_arrow_converted_schema)
+	ed := C.duckdb_schema_from_arrow(conn.data(), (*C.struct_ArrowSchema)(arr), (*C.duckdb_arrow_converted_schema)(convertedSchema))
+	errData := ErrorData{Ptr: unsafe.Pointer(ed)}
+	defer DestroyErrorData(&errData)
+	if ErrorDataHasError(errData) {
+		return nil, errors.New(ErrorDataMessage(errData))
+	}
+	return &ArrowConvertedSchema{Ptr: unsafe.Pointer(convertedSchema)}, nil
+}
+
+// DataChunkFromArrow converts an Arrow RecordBatch to a DuckDB DataChunk using the provided Connection and ArrowConvertedSchema.
+func DataChunkFromArrow(conn Connection, rec arrow.RecordBatch, convertedSchema *ArrowConvertedSchema) (*DataChunk, error) {
+	arr := C.calloc(1, C.sizeof_struct_ArrowArray)
+	defer func() {
+		cdata.ReleaseCArrowArray((*cdata.CArrowArray)(arr))
+		C.free(arr)
+	}()
+	arrs := C.calloc(1, C.sizeof_struct_ArrowSchema)
+	defer func() {
+		cdata.ReleaseCArrowSchema((*cdata.CArrowSchema)(arrs))
+		C.free(arrs)
+	}()
+	cdata.ExportArrowRecordBatch(rec, (*cdata.CArrowArray)(arr), (*cdata.CArrowSchema)(arrs))
+	chunk := C.calloc(1, C.sizeof_duckdb_data_chunk)
+	ed := C.duckdb_data_chunk_from_arrow(conn.data(), (*C.struct_ArrowArray)(arr), *(*C.duckdb_arrow_converted_schema)(convertedSchema.Ptr), (*C.duckdb_data_chunk)(chunk))
+	errData := ErrorData{Ptr: unsafe.Pointer(ed)}
+	defer DestroyErrorData(&errData)
+	if ErrorDataHasError(errData) {
+		return nil, errors.New(ErrorDataMessage(errData))
+	}
+	return &DataChunk{Ptr: unsafe.Pointer(chunk)}, nil
+}
+
 // ------------------------------------------------------------------ //
 // Arrow Interface (entire interface has deprecation notice)
 // ------------------------------------------------------------------ //
-
-// TODO:
-// duckdb_to_arrow_schema
-// duckdb_data_chunk_to_arrow
-// duckdb_schema_from_arrow
-// duckdb_data_chunk_from_arrow
 
 // DestroyArrowConvertedSchema wraps duckdb_destroy_arrow_converted_schema.
 func DestroyArrowConvertedSchema(schema *ArrowConvertedSchema) {
