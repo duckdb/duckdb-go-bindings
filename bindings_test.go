@@ -94,10 +94,8 @@ func TestArrow(t *testing.T) {
 	require.NoError(t, err)
 	defer rec.Release()
 
-	t.Log(rec.NumRows())
-	t.Log(rec.NumCols())
-
 	require.Equal(t, 2, int(rec.NumCols()))
+	require.Equal(t, 3, int(rec.NumRows()))
 
 	newRec := array.NewRecordBatch(schema, rec.Columns(), rec.NumRows())
 	defer newRec.Release()

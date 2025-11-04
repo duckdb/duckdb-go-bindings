@@ -3768,8 +3768,8 @@ func SchemaFromArrow(conn Connection, schema *arrow.Schema) (*ArrowConvertedSche
 		C.free(arr)
 	}()
 
-	convertedSchema := C.calloc(1, C.sizeof_duckdb_arrow_converted_schema)
-	ed := C.duckdb_schema_from_arrow(conn.data(), (*C.struct_ArrowSchema)(arr), (*C.duckdb_arrow_converted_schema)(convertedSchema))
+	var convertedSchema C.duckdb_arrow_converted_schema
+	ed := C.duckdb_schema_from_arrow(conn.data(), (*C.struct_ArrowSchema)(arr), &convertedSchema)
 	errData := ErrorData{Ptr: unsafe.Pointer(ed)}
 	defer DestroyErrorData(&errData)
 	if ErrorDataHasError(errData) {
@@ -3779,7 +3779,7 @@ func SchemaFromArrow(conn Connection, schema *arrow.Schema) (*ArrowConvertedSche
 }
 
 // DataChunkFromArrow converts an Arrow RecordBatch to a DuckDB DataChunk using the provided Connection and ArrowConvertedSchema.
-func DataChunkFromArrow(conn Connection, rec arrow.RecordBatch, convertedSchema *ArrowConvertedSchema) (*DataChunk, error) {
+func DataChunkFromArrow(conn Connection, rec arrow.RecordBatch, schema *ArrowConvertedSchema) (*DataChunk, error) {
 	arr := C.calloc(1, C.sizeof_struct_ArrowArray)
 	defer func() {
 		cdata.ReleaseCArrowArray((*cdata.CArrowArray)(arr))
@@ -3791,8 +3791,9 @@ func DataChunkFromArrow(conn Connection, rec arrow.RecordBatch, convertedSchema 
 		C.free(arrs)
 	}()
 	cdata.ExportArrowRecordBatch(rec, (*cdata.CArrowArray)(arr), (*cdata.CArrowSchema)(arrs))
-	chunk := C.calloc(1, C.sizeof_duckdb_data_chunk)
-	ed := C.duckdb_data_chunk_from_arrow(conn.data(), (*C.struct_ArrowArray)(arr), *(*C.duckdb_arrow_converted_schema)(convertedSchema.Ptr), (*C.duckdb_data_chunk)(chunk))
+
+	var chunk C.duckdb_data_chunk
+	ed := C.duckdb_data_chunk_from_arrow(conn.data(), (*C.struct_ArrowArray)(arr), schema.data(), &chunk)
 	errData := ErrorData{Ptr: unsafe.Pointer(ed)}
 	defer DestroyErrorData(&errData)
 	if ErrorDataHasError(errData) {
