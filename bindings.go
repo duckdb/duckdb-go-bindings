@@ -1502,6 +1502,7 @@ func PreparedStatementColumnCount(preparedStmt PreparedStatement) IdxT {
 
 func PreparedStatementColumnName(preparedStmt PreparedStatement, index IdxT) string {
 	name := C.duckdb_prepared_statement_column_name(preparedStmt.data(), index)
+	defer Free(unsafe.Pointer(name))
 	return C.GoString(name)
 }
 
