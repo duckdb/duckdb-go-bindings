@@ -4426,13 +4426,21 @@ with their default values, or NULL.
 DUCKDB_C_API duckdb_state duckdb_appender_add_column(duckdb_appender appender, const char *name);
 
 /*!
+Clears all buffered data from the appender without flushing it to the table. This discards any data that has been
+appended but not yet written. The appender can continue to be used after clearing.
+
+* @param appender The appender to clear.
+* @return `DuckDBSuccess` on success or `DuckDBError` on failure.
+*/
+DUCKDB_C_API duckdb_state duckdb_appender_clear(duckdb_appender appender);
+
+/*!
 Removes all columns from the active column list of the appender, resetting the appender to treat all columns as active.
 Immediately flushes all previous data.
 
 * @param appender The appender to clear the columns from.
 * @return `DuckDBSuccess` on success or `DuckDBError` on failure.
 */
-DUCKDB_C_API duckdb_state duckdb_appender_clear(duckdb_appender appender);
 DUCKDB_C_API duckdb_state duckdb_appender_clear_columns(duckdb_appender appender);
 
 /*!
