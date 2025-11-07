@@ -3524,6 +3524,10 @@ func AppenderFlush(appender Appender) State {
 	return C.duckdb_appender_flush(appender.data())
 }
 
+func AppenderClear(appender Appender) State {
+	return C.duckdb_appender_clear(appender.data())
+}
+
 func AppenderClose(appender Appender) State {
 	return C.duckdb_appender_close(appender.data())
 }

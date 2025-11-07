@@ -3548,6 +3548,10 @@ func AppenderAddColumn(appender Appender, name string) State {
 	return C.duckdb_appender_add_column(appender.data(), cName)
 }
 
+func AppenderClear(appender Appender) State {
+	return C.duckdb_appender_clear(appender.data())
+}
+
 func AppenderClearColumns(appender Appender) State {
 	return C.duckdb_appender_clear_columns(appender.data())
 }
