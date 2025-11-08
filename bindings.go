@@ -3,58 +3,7 @@ package duckdb_go_bindings
 /*
 #include <duckdb.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <duckdb_go_bindings.h>
-
-#ifndef ARROW_C_DATA_INTERFACE
-#define ARROW_C_DATA_INTERFACE
-
-#define ARROW_FLAG_DICTIONARY_ORDERED 1
-#define ARROW_FLAG_NULLABLE 2
-#define ARROW_FLAG_MAP_KEYS_SORTED 4
-
-struct ArrowSchema {
-  // Array type description
-  const char* format;
-  const char* name;
-  const char* metadata;
-  int64_t flags;
-  int64_t n_children;
-  struct ArrowSchema** children;
-  struct ArrowSchema* dictionary;
-
-  // Release callback
-  void (*release)(struct ArrowSchema*);
-  // Opaque producer-specific data
-  void* private_data;
-};
-
-struct ArrowArray {
-  // Array data description
-  int64_t length;
-  int64_t null_count;
-  int64_t offset;
-  int64_t n_buffers;
-  int64_t n_children;
-  const void** buffers;
-  struct ArrowArray** children;
-  struct ArrowArray* dictionary;
-
-  // Release callback
-  void (*release)(struct ArrowArray*);
-  // Opaque producer-specific data
-  void* private_data;
-};
-
-struct ArrowArrayStream {
-	void (*get_schema)(struct ArrowArrayStream*);
-	void (*get_next)(struct ArrowArrayStream*);
-	void (*get_last_error)(struct ArrowArrayStream*);
-	void (*release)(struct ArrowArrayStream*);
-	void* private_data;
-};
-
-#endif  // ARROW_C_DATA_INTERFACE
 */
 import "C"
 
@@ -3710,9 +3659,6 @@ func TableDescriptionGetColumnName(desc TableDescription, index IdxT) string {
 	defer Free(unsafe.Pointer(cName))
 	return C.GoString(cName)
 }
-
-// TODO:
-// duckdb_arrow_array_scan
 
 //===--------------------------------------------------------------------===//
 // Threading Information

@@ -94,6 +94,4 @@ CGO_ENABLED=1 CGO_LDFLAGS="-lduckdb -L/path/to/dir" LD_LIBRARY_PATH=/path/to/dir
 
 ## Arrow functions
 
-Provide the duckdb_arrow build tag if you want to use arrow functions:
-CGO_ENABLED=1 CGO_LDFLAGS="-lduckdb -L/path/to/dir" LD_LIBRARY_PATH=/path/to/dir go build -tags=duckdb_use_lib,duckdb_arrow
-
+Provide the duckdb_arrow build tag if you want to use arrow functions
