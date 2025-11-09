@@ -1,4 +1,4 @@
-module github.com/duckdb/duckdb-go-bindings
+module github.com/duckdb/duckdb-go-bindings/linux-amd64
 
 go 1.24
 
