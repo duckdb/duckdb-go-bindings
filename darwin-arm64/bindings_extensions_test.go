@@ -1,10 +1,11 @@
 package duckdb_go_bindings
 
 import (
-	"github.com/stretchr/testify/require"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func getTestDir(t *testing.T) string {
