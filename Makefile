@@ -12,9 +12,6 @@ update.binding:
 	rm -f ${DIRECTORY}/bindings*.go && \
 	cp bindings*.go ${DIRECTORY}/.
 
-	rm -f ${DIRECTORY}/go.* && \
-	cp go.* ${DIRECTORY}/.
-
 test.dynamic.lib:
 	mkdir dynamic-dir && \
 	cd dynamic-dir && \
