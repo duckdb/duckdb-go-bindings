@@ -1025,7 +1025,6 @@ func DestroyArrowOptions(options *ArrowOptions) {
 
 func LibraryVersion() string {
 	cStr := C.duckdb_library_version()
-	defer Free(unsafe.Pointer(cStr))
 	return C.GoString(cStr)
 }
 
