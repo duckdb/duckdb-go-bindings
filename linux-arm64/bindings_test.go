@@ -32,3 +32,9 @@ func TestCreateDataChunk(t *testing.T) {
 	chunk := CreateDataChunk(types)
 	defer DestroyDataChunk(&chunk)
 }
+
+func TestLibraryVersion(t *testing.T) {
+	defer VerifyAllocationCounters()
+	v := LibraryVersion()
+	require.NotEmpty(t, v)
+}
