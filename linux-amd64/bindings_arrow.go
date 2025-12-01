@@ -154,7 +154,7 @@ func SchemaFromArrow(conn Connection, schema *arrow.Schema) (ArrowConvertedSchem
 // DataChunkFromArrow converts an Arrow RecordBatch to a DuckDB DataChunk using the provided Connection and ArrowConvertedSchema.
 // The returned DataChunk must be destroyed with DestroyDataChunk.
 // The returned ErrorData must be checked for errors and destroyed with DestroyErrorData.
-func DataChunkFromArrow(conn Connection, rec arrow.RecordBatch, schema ArrowConvertedSchema) (DataChunk, ErrorData) {
+func DataChunkFromArrow(conn Connection, rec arrow.RecordBatch, schema ArrowConvertedSchema, chunk DataChunk) ErrorData {
 	arr := C.calloc(1, C.sizeof_struct_ArrowArray)
 	defer func() {
 		cdata.ReleaseCArrowArray((*cdata.CArrowArray)(arr))
@@ -167,16 +167,16 @@ func DataChunkFromArrow(conn Connection, rec arrow.RecordBatch, schema ArrowConv
 	}()
 	cdata.ExportArrowRecordBatch(rec, (*cdata.CArrowArray)(arr), (*cdata.CArrowSchema)(arrs))
 
-	var chunk C.duckdb_data_chunk
-	ed := C.duckdb_data_chunk_from_arrow(conn.data(), (*C.struct_ArrowArray)(arr), schema.data(), &chunk)
+	cd := chunk.data()
+	ed := C.duckdb_data_chunk_from_arrow(conn.data(), (*C.struct_ArrowArray)(arr), schema.data(), &cd)
 	errData := ErrorData{Ptr: unsafe.Pointer(ed)}
 	if debugMode && ed != nil {
 		incrAllocCount("errorData")
 	}
-	if debugMode && chunk != nil {
+	if debugMode {
 		incrAllocCount("chunk")
 	}
-	return DataChunk{Ptr: unsafe.Pointer(chunk)}, errData
+	return errData
 }
 
 // ------------------------------------------------------------------ //
