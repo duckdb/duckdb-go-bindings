@@ -176,6 +176,8 @@ func DataChunkFromArrow(conn Connection, rec arrow.RecordBatch, schema ArrowConv
 	if debugMode {
 		incrAllocCount("chunk")
 	}
+	// TODO: remove once duckdb_data_chunk_from_arrow sets the size correctly
+	DataChunkSetSize(chunk, IdxT(rec.NumRows()))
 	return errData
 }
 
