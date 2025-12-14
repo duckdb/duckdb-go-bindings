@@ -100,7 +100,8 @@ func TestArrow(t *testing.T) {
 	require.False(t, ErrorDataHasError(ed))
 	defer DestroyArrowConvertedSchema(&convSchema)
 
-	dataChunk, ed := DataChunkFromArrow(conn, newRec, convSchema)
+	var dataChunk DataChunk
+	ed = DataChunkFromArrow(conn, newRec, convSchema, dataChunk)
 	defer DestroyErrorData(&ed)
 	require.False(t, ErrorDataHasError(ed))
 	defer DestroyDataChunk(&dataChunk)
