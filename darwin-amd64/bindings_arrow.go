@@ -155,6 +155,7 @@ func SchemaFromArrow(conn Connection, schema *arrow.Schema) (ArrowConvertedSchem
 // The returned DataChunk must be destroyed with DestroyDataChunk.
 // The returned ErrorData must be checked for errors and destroyed with DestroyErrorData.
 func DataChunkFromArrow(conn Connection, rec arrow.RecordBatch, schema ArrowConvertedSchema, chunk DataChunk) ErrorData {
+	// Export Arrow RecordBatch to C ArrowArray
 	arr := C.calloc(1, C.sizeof_struct_ArrowArray)
 	defer func() {
 		cdata.ReleaseCArrowArray((*cdata.CArrowArray)(arr))
@@ -176,7 +177,8 @@ func DataChunkFromArrow(conn Connection, rec arrow.RecordBatch, schema ArrowConv
 	if debugMode {
 		incrAllocCount("chunk")
 	}
-	// TODO: remove once duckdb_data_chunk_from_arrow sets the size correctly
+
+	// TODO: There is some bug here, so we have to set this manually: https://github.com/duckdb/duckdb/issues/20195
 	DataChunkSetSize(chunk, IdxT(rec.NumRows()))
 	return errData
 }
