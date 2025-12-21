@@ -183,6 +183,44 @@ const (
 	CastModeTry    CastMode = C.DUCKDB_CAST_TRY
 )
 
+// FileFlag wraps duckdb_file_flag.
+type FileFlag = C.duckdb_file_flag
+
+const (
+	FileFlagInvalid   FileFlag = C.DUCKDB_FILE_FLAG_INVALID
+	FileFlagRead      FileFlag = C.DUCKDB_FILE_FLAG_READ
+	FileFlagWrite     FileFlag = C.DUCKDB_FILE_FLAG_WRITE
+	FileFlagCreate    FileFlag = C.DUCKDB_FILE_FLAG_CREATE
+	FileFlagCreateNew FileFlag = C.DUCKDB_FILE_FLAG_CREATE_NEW
+	FileFlagAppend    FileFlag = C.DUCKDB_FILE_FLAG_APPEND
+)
+
+// ConfigOptionScope wraps duckdb_config_option_scope.
+type ConfigOptionScope = C.duckdb_config_option_scope
+
+const (
+	ConfigOptionScopeInvalid ConfigOptionScope = C.DUCKDB_CONFIG_OPTION_SCOPE_INVALID
+	ConfigOptionScopeLocal   ConfigOptionScope = C.DUCKDB_CONFIG_OPTION_SCOPE_LOCAL
+	ConfigOptionScopeSession ConfigOptionScope = C.DUCKDB_CONFIG_OPTION_SCOPE_SESSION
+	ConfigOptionScopeGlobal  ConfigOptionScope = C.DUCKDB_CONFIG_OPTION_SCOPE_GLOBAL
+)
+
+// CatalogEntryType wraps duckdb_catalog_entry_type.
+type CatalogEntryType = C.duckdb_catalog_entry_type
+
+const (
+	CatalogEntryTypeInvalid           CatalogEntryType = C.DUCKDB_CATALOG_ENTRY_TYPE_INVALID
+	CatalogEntryTypeTable             CatalogEntryType = C.DUCKDB_CATALOG_ENTRY_TYPE_TABLE
+	CatalogEntryTypeSchema            CatalogEntryType = C.DUCKDB_CATALOG_ENTRY_TYPE_SCHEMA
+	CatalogEntryTypeView              CatalogEntryType = C.DUCKDB_CATALOG_ENTRY_TYPE_VIEW
+	CatalogEntryTypeIndex             CatalogEntryType = C.DUCKDB_CATALOG_ENTRY_TYPE_INDEX
+	CatalogEntryTypePreparedStatement CatalogEntryType = C.DUCKDB_CATALOG_ENTRY_TYPE_PREPARED_STATEMENT
+	CatalogEntryTypeSequence          CatalogEntryType = C.DUCKDB_CATALOG_ENTRY_TYPE_SEQUENCE
+	CatalogEntryTypeCollation         CatalogEntryType = C.DUCKDB_CATALOG_ENTRY_TYPE_COLLATION
+	CatalogEntryTypeType              CatalogEntryType = C.DUCKDB_CATALOG_ENTRY_TYPE_TYPE
+	CatalogEntryTypeDatabase          CatalogEntryType = C.DUCKDB_CATALOG_ENTRY_TYPE_DATABASE
+)
+
 // ------------------------------------------------------------------ //
 // Types
 // ------------------------------------------------------------------ //
@@ -646,6 +684,15 @@ func (config *Config) data() C.duckdb_config {
 	return C.duckdb_config(config.Ptr)
 }
 
+// ConfigOption wraps *duckdb_config_option.
+type ConfigOption struct {
+	Ptr unsafe.Pointer
+}
+
+func (option *ConfigOption) data() C.duckdb_config_option {
+	return C.duckdb_config_option(option.Ptr)
+}
+
 // LogicalType wraps *duckdb_logical_type.
 type LogicalType struct {
 	Ptr unsafe.Pointer
@@ -739,6 +786,51 @@ func (set *ScalarFunctionSet) data() C.duckdb_scalar_function_set {
 	return C.duckdb_scalar_function_set(set.Ptr)
 }
 
+// CopyFunction wraps *duckdb_copy_function.
+type CopyFunction struct {
+	Ptr unsafe.Pointer
+}
+
+func (f *CopyFunction) data() C.duckdb_copy_function {
+	return C.duckdb_copy_function(f.Ptr)
+}
+
+// CopyFunctionBindInfo wraps *duckdb_copy_function_bind_info.
+type CopyFunctionBindInfo struct {
+	Ptr unsafe.Pointer
+}
+
+func (info *CopyFunctionBindInfo) data() C.duckdb_copy_function_bind_info {
+	return C.duckdb_copy_function_bind_info(info.Ptr)
+}
+
+// CopyFunctionGlobalInitInfo wraps *duckdb_copy_function_global_init_info.
+type CopyFunctionGlobalInitInfo struct {
+	Ptr unsafe.Pointer
+}
+
+func (info *CopyFunctionGlobalInitInfo) data() C.duckdb_copy_function_global_init_info {
+	return C.duckdb_copy_function_global_init_info(info.Ptr)
+}
+
+// CopyFunctionSinkInfo wraps *duckdb_copy_function_sink_info.
+type CopyFunctionSinkInfo struct {
+	Ptr unsafe.Pointer
+}
+
+func (info *CopyFunctionSinkInfo) data() C.duckdb_copy_function_sink_info {
+	return C.duckdb_copy_function_sink_info(info.Ptr)
+}
+
+// CopyFunctionFinalizeInfo wraps *duckdb_copy_function_finalize_info.
+type CopyFunctionFinalizeInfo struct {
+	Ptr unsafe.Pointer
+}
+
+func (info *CopyFunctionFinalizeInfo) data() C.duckdb_copy_function_finalize_info {
+	return C.duckdb_copy_function_finalize_info(info.Ptr)
+}
+
 // TODO:
 // *duckdb_aggregate_function
 // *duckdb_aggregate_function_set
@@ -781,6 +873,60 @@ type ReplacementScanInfo struct {
 
 func (info *ReplacementScanInfo) data() C.duckdb_replacement_scan_info {
 	return C.duckdb_replacement_scan_info(info.Ptr)
+}
+
+// FileOpenOptions wraps *duckdb_file_open_options.
+type FileOpenOptions struct {
+	Ptr unsafe.Pointer
+}
+
+func (options *FileOpenOptions) data() C.duckdb_file_open_options {
+	return C.duckdb_file_open_options(options.Ptr)
+}
+
+// FileSystem wraps *duckdb_file_system.
+type FileSystem struct {
+	Ptr unsafe.Pointer
+}
+
+func (fs *FileSystem) data() C.duckdb_file_system {
+	return C.duckdb_file_system(fs.Ptr)
+}
+
+// FileHandle wraps *duckdb_file_handle.
+type FileHandle struct {
+	Ptr unsafe.Pointer
+}
+
+func (handle *FileHandle) data() C.duckdb_file_handle {
+	return C.duckdb_file_handle(handle.Ptr)
+}
+
+// Catalog wraps *duckdb_catalog.
+type Catalog struct {
+	Ptr unsafe.Pointer
+}
+
+func (catalog *Catalog) data() C.duckdb_catalog {
+	return C.duckdb_catalog(catalog.Ptr)
+}
+
+// CatalogEntry wraps *duckdb_catalog_entry.
+type CatalogEntry struct {
+	Ptr unsafe.Pointer
+}
+
+func (entry *CatalogEntry) data() C.duckdb_catalog_entry {
+	return C.duckdb_catalog_entry(entry.Ptr)
+}
+
+// LogStorage wraps *duckdb_log_storage.
+type LogStorage struct {
+	Ptr unsafe.Pointer
+}
+
+func (logStorage *LogStorage) data() C.duckdb_log_storage {
+	return C.duckdb_log_storage(logStorage.Ptr)
 }
 
 // Arrow wraps *duckdb_arrow.
@@ -3069,6 +3215,43 @@ func ScalarFunctionBindGetArgument(info BindInfo, index IdxT) Expression {
 	}
 }
 
+func ScalarFunctionGetState(info FunctionInfo) unsafe.Pointer {
+	return C.duckdb_scalar_function_get_state(info.data())
+}
+
+func ScalarFunctionSetInit(f ScalarFunction, callbackPtr unsafe.Pointer) {
+	callback := C.duckdb_scalar_function_init_t(callbackPtr)
+	C.duckdb_scalar_function_set_init(f.data(), callback)
+}
+
+func ScalarFunctionInitSetError(info InitInfo, err string) {
+	cErr := C.CString(err)
+	defer Free(unsafe.Pointer(cErr))
+	C.duckdb_scalar_function_init_set_error(info.data(), cErr)
+}
+
+func ScalarFunctionInitSetState(info InitInfo, statePtr unsafe.Pointer, callbackPtr unsafe.Pointer) {
+	callback := C.duckdb_delete_callback_t(callbackPtr)
+	C.duckdb_scalar_function_init_set_state(info.data(), statePtr, callback)
+}
+
+func ScalarFunctionInitGetClientContext(info InitInfo, outCtx *ClientContext) {
+	var ctx C.duckdb_client_context
+	C.duckdb_scalar_function_init_get_client_context(info.data(), &ctx)
+	outCtx.Ptr = unsafe.Pointer(ctx)
+	if debugMode {
+		incrAllocCount("ctx")
+	}
+}
+
+func ScalarFunctionInitGetBindData(info InitInfo) unsafe.Pointer {
+	return C.duckdb_scalar_function_init_get_bind_data(info.data())
+}
+
+func ScalarFunctionInitGetExtraInfo(info InitInfo) unsafe.Pointer {
+	return C.duckdb_scalar_function_init_get_extra_info(info.data())
+}
+
 // ------------------------------------------------------------------ //
 // Selection Vector Functions
 // ------------------------------------------------------------------ //
@@ -3520,6 +3703,10 @@ func AppenderFlush(appender Appender) State {
 	return C.duckdb_appender_flush(appender.data())
 }
 
+func AppenderClear(appender Appender) State {
+	return C.duckdb_appender_clear(appender.data())
+}
+
 func AppenderClose(appender Appender) State {
 	return C.duckdb_appender_close(appender.data())
 }
@@ -3650,10 +3837,24 @@ func ColumnHasDefault(desc TableDescription, index IdxT, outBool *bool) State {
 	return state
 }
 
+func TableDescriptionGetColumnCount(desc TableDescription) IdxT {
+	return C.duckdb_table_description_get_column_count(desc.data())
+}
+
 func TableDescriptionGetColumnName(desc TableDescription, index IdxT) string {
 	cName := C.duckdb_table_description_get_column_name(desc.data(), index)
 	defer Free(unsafe.Pointer(cName))
 	return C.GoString(cName)
+}
+
+func TableDescriptionGetColumnType(desc TableDescription, index IdxT) LogicalType {
+	logicalType := C.duckdb_table_description_get_column_type(desc.data(), index)
+	if debugMode {
+		incrAllocCount("logicalType")
+	}
+	return LogicalType{
+		Ptr: unsafe.Pointer(logicalType),
+	}
 }
 
 //===--------------------------------------------------------------------===//
@@ -3708,6 +3909,517 @@ func FetchChunk(res Result) DataChunk {
 // duckdb_cast_function_set_row_error
 // duckdb_register_cast_function
 // duckdb_destroy_cast_function
+
+// ------------------------------------------------------------------ //
+// File System Interface
+// ------------------------------------------------------------------ //
+
+func ClientContextGetFileSystem(ctx ClientContext) FileSystem {
+	fs := C.duckdb_client_context_get_file_system(ctx.data())
+	if debugMode {
+		incrAllocCount("fileSystem")
+	}
+	return FileSystem{
+		Ptr: unsafe.Pointer(fs),
+	}
+}
+
+func DestroyFileSystem(fs *FileSystem) {
+	if fs.Ptr == nil {
+		return
+	}
+	if debugMode {
+		decrAllocCount("fileSystem")
+	}
+	data := fs.data()
+	C.duckdb_destroy_file_system(&data)
+	fs.Ptr = nil
+}
+
+func FileSystemErrorData(fs FileSystem) ErrorData {
+	errorData := C.duckdb_file_system_error_data(fs.data())
+	if debugMode {
+		incrAllocCount("errorData")
+	}
+	return ErrorData{
+		Ptr: unsafe.Pointer(errorData),
+	}
+}
+
+func FileSystemOpen(fs FileSystem, path string, options FileOpenOptions, outHandle *FileHandle) State {
+	cPath := C.CString(path)
+	defer Free(unsafe.Pointer(cPath))
+
+	var handle C.duckdb_file_handle
+	state := C.duckdb_file_system_open(fs.data(), cPath, options.data(), &handle)
+	outHandle.Ptr = unsafe.Pointer(handle)
+	if debugMode {
+		incrAllocCount("fileHandle")
+	}
+	return state
+}
+
+func CreateFileOpenOptions() FileOpenOptions {
+	options := C.duckdb_create_file_open_options()
+	if debugMode {
+		incrAllocCount("fileOpenOptions")
+	}
+	return FileOpenOptions{
+		Ptr: unsafe.Pointer(options),
+	}
+}
+
+func FileOpenOptionsSetFlag(options FileOpenOptions, flag FileFlag, value bool) State {
+	return C.duckdb_file_open_options_set_flag(options.data(), flag, C.bool(value))
+}
+
+func DestroyFileOpenOptions(options *FileOpenOptions) {
+	if options.Ptr == nil {
+		return
+	}
+	if debugMode {
+		decrAllocCount("fileOpenOptions")
+	}
+	data := options.data()
+	C.duckdb_destroy_file_open_options(&data)
+	options.Ptr = nil
+}
+
+func DestroyFileHandle(handle *FileHandle) {
+	if handle.Ptr == nil {
+		return
+	}
+	if debugMode {
+		decrAllocCount("fileHandle")
+	}
+	data := handle.data()
+	C.duckdb_destroy_file_handle(&data)
+	handle.Ptr = nil
+}
+
+func FileHandleErrorData(handle FileHandle) ErrorData {
+	errorData := C.duckdb_file_handle_error_data(handle.data())
+	if debugMode {
+		incrAllocCount("errorData")
+	}
+	return ErrorData{
+		Ptr: unsafe.Pointer(errorData),
+	}
+}
+
+func FileHandleRead(handle FileHandle, buffer unsafe.Pointer, size int64) int64 {
+	return int64(C.duckdb_file_handle_read(handle.data(), buffer, C.int64_t(size)))
+}
+
+func FileHandleWrite(handle FileHandle, buffer unsafe.Pointer, size int64) int64 {
+	return int64(C.duckdb_file_handle_write(handle.data(), buffer, C.int64_t(size)))
+}
+
+func FileHandleTell(handle FileHandle) int64 {
+	return int64(C.duckdb_file_handle_tell(handle.data()))
+}
+
+func FileHandleSize(handle FileHandle) int64 {
+	return int64(C.duckdb_file_handle_size(handle.data()))
+}
+
+func FileHandleSeek(handle FileHandle, position int64) State {
+	return C.duckdb_file_handle_seek(handle.data(), C.int64_t(position))
+}
+
+func FileHandleSync(handle FileHandle) State {
+	return C.duckdb_file_handle_sync(handle.data())
+}
+
+func FileHandleClose(handle FileHandle) State {
+	return C.duckdb_file_handle_close(handle.data())
+}
+
+// ------------------------------------------------------------------ //
+// Config Options Interface
+// ------------------------------------------------------------------ //
+
+func CreateConfigOption() ConfigOption {
+	option := C.duckdb_create_config_option()
+	if debugMode {
+		incrAllocCount("configOption")
+	}
+	return ConfigOption{
+		Ptr: unsafe.Pointer(option),
+	}
+}
+
+func DestroyConfigOption(option *ConfigOption) {
+	if option.Ptr == nil {
+		return
+	}
+	if debugMode {
+		decrAllocCount("configOption")
+	}
+	data := option.data()
+	C.duckdb_destroy_config_option(&data)
+	option.Ptr = nil
+}
+
+func ConfigOptionSetName(option ConfigOption, name string) {
+	cName := C.CString(name)
+	defer Free(unsafe.Pointer(cName))
+	C.duckdb_config_option_set_name(option.data(), cName)
+}
+
+func ConfigOptionSetType(option ConfigOption, logicalType LogicalType) {
+	C.duckdb_config_option_set_type(option.data(), logicalType.data())
+}
+
+func ConfigOptionSetDefaultValue(option ConfigOption, defaultValue Value) {
+	C.duckdb_config_option_set_default_value(option.data(), defaultValue.data())
+}
+
+func ConfigOptionSetDefaultScope(option ConfigOption, defaultScope ConfigOptionScope) {
+	C.duckdb_config_option_set_default_scope(option.data(), defaultScope)
+}
+
+func ConfigOptionSetDescription(option ConfigOption, description string) {
+	cDescription := C.CString(description)
+	defer Free(unsafe.Pointer(cDescription))
+	C.duckdb_config_option_set_description(option.data(), cDescription)
+}
+
+func RegisterConfigOption(conn Connection, option ConfigOption) State {
+	return C.duckdb_register_config_option(conn.data(), option.data())
+}
+
+func ClientContextGetConfigOption(ctx ClientContext, name string, outScope *ConfigOptionScope) Value {
+	cName := C.CString(name)
+	defer Free(unsafe.Pointer(cName))
+	v := C.duckdb_client_context_get_config_option(ctx.data(), cName, (*C.duckdb_config_option_scope)(outScope))
+	if debugMode {
+		incrAllocCount("v")
+	}
+	return Value{
+		Ptr: unsafe.Pointer(v),
+	}
+}
+
+// ------------------------------------------------------------------ //
+// Copy Functions
+// ------------------------------------------------------------------ //
+
+func CreateCopyFunction() CopyFunction {
+	f := C.duckdb_create_copy_function()
+	if debugMode {
+		incrAllocCount("copyFunc")
+	}
+	return CopyFunction{
+		Ptr: unsafe.Pointer(f),
+	}
+}
+
+func CopyFunctionSetName(f CopyFunction, name string) {
+	cName := C.CString(name)
+	defer Free(unsafe.Pointer(cName))
+	C.duckdb_copy_function_set_name(f.data(), cName)
+}
+
+func CopyFunctionSetExtraInfo(f CopyFunction, extraInfo unsafe.Pointer, destructor unsafe.Pointer) {
+	C.duckdb_copy_function_set_extra_info(f.data(), extraInfo, C.duckdb_delete_callback_t(destructor))
+}
+
+func RegisterCopyFunction(conn Connection, f CopyFunction) State {
+	return C.duckdb_register_copy_function(conn.data(), f.data())
+}
+
+func DestroyCopyFunction(f *CopyFunction) {
+	if f.Ptr == nil {
+		return
+	}
+	if debugMode {
+		decrAllocCount("copyFunc")
+	}
+	data := f.data()
+	C.duckdb_destroy_copy_function(&data)
+	f.Ptr = nil
+}
+
+func CopyFunctionSetBind(f CopyFunction, callback unsafe.Pointer) {
+	C.duckdb_copy_function_set_bind(f.data(), C.duckdb_copy_function_bind_t(callback))
+}
+
+func CopyFunctionBindSetError(info CopyFunctionBindInfo, err string) {
+	cErr := C.CString(err)
+	defer Free(unsafe.Pointer(cErr))
+	C.duckdb_copy_function_bind_set_error(info.data(), cErr)
+}
+
+func CopyFunctionBindGetExtraInfo(info CopyFunctionBindInfo) unsafe.Pointer {
+	return C.duckdb_copy_function_bind_get_extra_info(info.data())
+}
+
+func CopyFunctionBindGetClientContext(info CopyFunctionBindInfo, outCtx *ClientContext) {
+	var ctx C.duckdb_client_context
+	ctx = C.duckdb_copy_function_bind_get_client_context(info.data())
+	outCtx.Ptr = unsafe.Pointer(ctx)
+	if debugMode {
+		incrAllocCount("ctx")
+	}
+}
+
+func CopyFunctionBindGetColumnCount(info CopyFunctionBindInfo) IdxT {
+	return C.duckdb_copy_function_bind_get_column_count(info.data())
+}
+
+func CopyFunctionBindGetColumnType(info CopyFunctionBindInfo, index IdxT) LogicalType {
+	t := C.duckdb_copy_function_bind_get_column_type(info.data(), index)
+	if debugMode {
+		incrAllocCount("logicalType")
+	}
+	return LogicalType{
+		Ptr: unsafe.Pointer(t),
+	}
+}
+
+func CopyFunctionBindGetOptions(info CopyFunctionBindInfo) Value {
+	v := C.duckdb_copy_function_bind_get_options(info.data())
+	if debugMode {
+		incrAllocCount("v")
+	}
+	return Value{
+		Ptr: unsafe.Pointer(v),
+	}
+}
+
+func CopyFunctionBindSetBindData(info CopyFunctionBindInfo, bindData unsafe.Pointer, destructor unsafe.Pointer) {
+	C.duckdb_copy_function_bind_set_bind_data(info.data(), bindData, C.duckdb_delete_callback_t(destructor))
+}
+
+func CopyFunctionSetGlobalInit(f CopyFunction, callback unsafe.Pointer) {
+	C.duckdb_copy_function_set_global_init(f.data(), C.duckdb_copy_function_global_init_t(callback))
+}
+
+func CopyFunctionGlobalInitSetError(info CopyFunctionGlobalInitInfo, err string) {
+	cErr := C.CString(err)
+	defer Free(unsafe.Pointer(cErr))
+	C.duckdb_copy_function_global_init_set_error(info.data(), cErr)
+}
+
+func CopyFunctionGlobalInitGetExtraInfo(info CopyFunctionGlobalInitInfo) unsafe.Pointer {
+	return C.duckdb_copy_function_global_init_get_extra_info(info.data())
+}
+
+func CopyFunctionGlobalInitGetClientContext(info CopyFunctionGlobalInitInfo, outCtx *ClientContext) {
+	var ctx C.duckdb_client_context
+	ctx = C.duckdb_copy_function_global_init_get_client_context(info.data())
+	outCtx.Ptr = unsafe.Pointer(ctx)
+	if debugMode {
+		incrAllocCount("ctx")
+	}
+}
+
+func CopyFunctionGlobalInitGetBindData(info CopyFunctionGlobalInitInfo) unsafe.Pointer {
+	return C.duckdb_copy_function_global_init_get_bind_data(info.data())
+}
+
+func CopyFunctionGlobalInitGetFilePath(info CopyFunctionGlobalInitInfo) string {
+	return C.GoString(C.duckdb_copy_function_global_init_get_file_path(info.data()))
+}
+
+func CopyFunctionGlobalInitSetGlobalState(info CopyFunctionGlobalInitInfo, globalState unsafe.Pointer, destructor unsafe.Pointer) {
+	C.duckdb_copy_function_global_init_set_global_state(info.data(), globalState, C.duckdb_delete_callback_t(destructor))
+}
+
+func CopyFunctionSetSink(f CopyFunction, callback unsafe.Pointer) {
+	C.duckdb_copy_function_set_sink(f.data(), C.duckdb_copy_function_sink_t(callback))
+}
+
+func CopyFunctionSinkSetError(info CopyFunctionSinkInfo, err string) {
+	cErr := C.CString(err)
+	defer Free(unsafe.Pointer(cErr))
+	C.duckdb_copy_function_sink_set_error(info.data(), cErr)
+}
+
+func CopyFunctionSinkGetExtraInfo(info CopyFunctionSinkInfo) unsafe.Pointer {
+	return C.duckdb_copy_function_sink_get_extra_info(info.data())
+}
+
+func CopyFunctionSinkGetClientContext(info CopyFunctionSinkInfo, outCtx *ClientContext) {
+	var ctx C.duckdb_client_context
+	ctx = C.duckdb_copy_function_sink_get_client_context(info.data())
+	outCtx.Ptr = unsafe.Pointer(ctx)
+	if debugMode {
+		incrAllocCount("ctx")
+	}
+}
+
+func CopyFunctionSinkGetBindData(info CopyFunctionSinkInfo) unsafe.Pointer {
+	return C.duckdb_copy_function_sink_get_bind_data(info.data())
+}
+
+func CopyFunctionSinkGetGlobalState(info CopyFunctionSinkInfo) unsafe.Pointer {
+	return C.duckdb_copy_function_sink_get_global_state(info.data())
+}
+
+func CopyFunctionSetFinalize(f CopyFunction, callback unsafe.Pointer) {
+	C.duckdb_copy_function_set_finalize(f.data(), C.duckdb_copy_function_finalize_t(callback))
+}
+
+func CopyFunctionFinalizeSetError(info CopyFunctionFinalizeInfo, err string) {
+	cErr := C.CString(err)
+	defer Free(unsafe.Pointer(cErr))
+	C.duckdb_copy_function_finalize_set_error(info.data(), cErr)
+}
+
+func CopyFunctionFinalizeGetExtraInfo(info CopyFunctionFinalizeInfo) unsafe.Pointer {
+	return C.duckdb_copy_function_finalize_get_extra_info(info.data())
+}
+
+func CopyFunctionFinalizeGetClientContext(info CopyFunctionFinalizeInfo, outCtx *ClientContext) {
+	var ctx C.duckdb_client_context
+	ctx = C.duckdb_copy_function_finalize_get_client_context(info.data())
+	outCtx.Ptr = unsafe.Pointer(ctx)
+	if debugMode {
+		incrAllocCount("ctx")
+	}
+}
+
+func CopyFunctionFinalizeGetBindData(info CopyFunctionFinalizeInfo) unsafe.Pointer {
+	return C.duckdb_copy_function_finalize_get_bind_data(info.data())
+}
+
+func CopyFunctionFinalizeGetGlobalState(info CopyFunctionFinalizeInfo) unsafe.Pointer {
+	return C.duckdb_copy_function_finalize_get_global_state(info.data())
+}
+
+func CopyFunctionSetCopyFromFunction(f CopyFunction, tableFunction TableFunction) {
+	C.duckdb_copy_function_set_copy_from_function(f.data(), tableFunction.data())
+}
+
+func TableFunctionBindGetResultColumnCount(info BindInfo) IdxT {
+	return C.duckdb_table_function_bind_get_result_column_count(info.data())
+}
+
+func TableFunctionBindGetResultColumnName(info BindInfo, index IdxT) string {
+	return C.GoString(C.duckdb_table_function_bind_get_result_column_name(info.data(), index))
+}
+
+func TableFunctionBindGetResultColumnType(info BindInfo, index IdxT) LogicalType {
+	t := C.duckdb_table_function_bind_get_result_column_type(info.data(), index)
+	if debugMode {
+		incrAllocCount("logicalType")
+	}
+	return LogicalType{
+		Ptr: unsafe.Pointer(t),
+	}
+}
+
+// ------------------------------------------------------------------ //
+// Catalog Interface
+// ------------------------------------------------------------------ //
+
+func ClientContextGetCatalog(ctx ClientContext, name string) Catalog {
+	cName := C.CString(name)
+	defer Free(unsafe.Pointer(cName))
+	catalog := C.duckdb_client_context_get_catalog(ctx.data(), cName)
+	if debugMode {
+		incrAllocCount("catalog")
+	}
+	return Catalog{
+		Ptr: unsafe.Pointer(catalog),
+	}
+}
+
+func CatalogGetTypeName(catalog Catalog) string {
+	return C.GoString(C.duckdb_catalog_get_type_name(catalog.data()))
+}
+
+func CatalogGetEntry(catalog Catalog, ctx ClientContext, entryType CatalogEntryType, schemaName string, entryName string) CatalogEntry {
+	cSchemaName := C.CString(schemaName)
+	defer Free(unsafe.Pointer(cSchemaName))
+	cEntryName := C.CString(entryName)
+	defer Free(unsafe.Pointer(cEntryName))
+	entry := C.duckdb_catalog_get_entry(catalog.data(), ctx.data(), entryType, cSchemaName, cEntryName)
+	if debugMode {
+		incrAllocCount("catalogEntry")
+	}
+	return CatalogEntry{
+		Ptr: unsafe.Pointer(entry),
+	}
+}
+
+func DestroyCatalog(catalog *Catalog) {
+	if catalog.Ptr == nil {
+		return
+	}
+	if debugMode {
+		decrAllocCount("catalog")
+	}
+	data := catalog.data()
+	C.duckdb_destroy_catalog(&data)
+	catalog.Ptr = nil
+}
+
+func CatalogEntryGetType(entry CatalogEntry) CatalogEntryType {
+	return C.duckdb_catalog_entry_get_type(entry.data())
+}
+
+func CatalogEntryGetName(entry CatalogEntry) string {
+	return C.GoString(C.duckdb_catalog_entry_get_name(entry.data()))
+}
+
+func DestroyCatalogEntry(entry *CatalogEntry) {
+	if entry.Ptr == nil {
+		return
+	}
+	if debugMode {
+		decrAllocCount("catalogEntry")
+	}
+	data := entry.data()
+	C.duckdb_destroy_catalog_entry(&data)
+	entry.Ptr = nil
+}
+
+// ------------------------------------------------------------------ //
+// Logging
+// ------------------------------------------------------------------ //
+
+func CreateLogStorage() LogStorage {
+	logStorage := C.duckdb_create_log_storage()
+	if debugMode {
+		incrAllocCount("logStorage")
+	}
+	return LogStorage{
+		Ptr: unsafe.Pointer(logStorage),
+	}
+}
+
+func DestroyLogStorage(logStorage *LogStorage) {
+	if logStorage.Ptr == nil {
+		return
+	}
+	if debugMode {
+		decrAllocCount("logStorage")
+	}
+	data := logStorage.data()
+	C.duckdb_destroy_log_storage(&data)
+	logStorage.Ptr = nil
+}
+
+func LogStorageSetWriteLogEntry(logStorage LogStorage, callback unsafe.Pointer) {
+	C.duckdb_log_storage_set_write_log_entry(logStorage.data(), C.duckdb_logger_write_log_entry_t(callback))
+}
+
+func LogStorageSetExtraData(logStorage LogStorage, extraData unsafe.Pointer, callback unsafe.Pointer) {
+	C.duckdb_log_storage_set_extra_data(logStorage.data(), extraData, C.duckdb_delete_callback_t(callback))
+}
+
+func LogStorageSetName(logStorage LogStorage, name string) {
+	cName := C.CString(name)
+	defer Free(unsafe.Pointer(cName))
+	C.duckdb_log_storage_set_name(logStorage.data(), cName)
+}
+
+func RegisterLogStorage(db Database, logStorage LogStorage) State {
+	return C.duckdb_register_log_storage(db.data(), logStorage.data())
+}
 
 // ------------------------------------------------------------------ //
 // Expression Interface
