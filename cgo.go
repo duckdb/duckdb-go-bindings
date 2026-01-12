@@ -8,3 +8,5 @@ package duckdb_go_bindings
 #include <duckdb.h>
 */
 import "C"
+
+import _ "github.com/duckdb/duckdb-go-bindings/include"
