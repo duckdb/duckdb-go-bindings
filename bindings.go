@@ -223,8 +223,8 @@ type (
 	// Use the respective Bit functions to access / write to this type.
 	// This type must be destroyed with DestroyBit.
 	Bit = C.duckdb_bit
-	// BigNum does not export New and Members.
-	// Use the respective BigNum functions to access / write to this type.
+	// BigNum stores arbitrary precision integers.
+	// Use NewBigNum/BigNumMembers to access/write to this type.
 	// This type must be destroyed with DestroyBigNum.
 	BigNum = C.duckdb_bignum
 )
@@ -449,6 +449,29 @@ func NewListEntry(offset uint64, length uint64) ListEntry {
 // ListEntryMembers returns the offset and length of a duckdb_list_entry.
 func ListEntryMembers(entry *ListEntry) (uint64, uint64) {
 	return uint64(entry.offset), uint64(entry.length)
+}
+
+// NewBigNum creates a BigNum from a byte slice and sign.
+// The data is stored in little endian format (absolute value).
+// The returned BigNum must be destroyed with DestroyBigNum.
+func NewBigNum(data []byte, isNegative bool) BigNum {
+	if debugMode {
+		incrAllocCount("bigNum")
+	}
+	cData := (*C.uint8_t)(C.CBytes(data))
+	return BigNum{
+		data:        cData,
+		size:        C.idx_t(len(data)),
+		is_negative: C.bool(isNegative),
+	}
+}
+
+// BigNumMembers returns the data bytes and sign of a BigNum.
+// The data is in little endian format (absolute value).
+func BigNumMembers(bn *BigNum) ([]byte, bool) {
+	size := int(bn.size)
+	data := C.GoBytes(unsafe.Pointer(bn.data), C.int(size))
+	return data, bool(bn.is_negative)
 }
 
 // Helper functions for types with internal fields that need freeing:
