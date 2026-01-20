@@ -219,8 +219,8 @@ type (
 	// Use the respective Blob functions to access / write to this type.
 	// This type must be destroyed with DestroyBlob.
 	Blob = C.duckdb_blob
-	// Bit does not export New and Members.
-	// Use the respective Bit functions to access / write to this type.
+	// Bit stores a bit string.
+	// Use NewBit/BitMembers to access this type.
 	// This type must be destroyed with DestroyBit.
 	Bit = C.duckdb_bit
 	// BigNum stores arbitrary precision integers.
@@ -472,6 +472,29 @@ func BigNumMembers(bn *BigNum) ([]byte, bool) {
 	size := int(bn.size)
 	data := C.GoBytes(unsafe.Pointer(bn.data), C.int(size))
 	return data, bool(bn.is_negative)
+}
+
+// NewBit creates a Bit from the given data bytes.
+// BIT byte data has 0 to 7 bits of padding.
+// The first byte contains the number of padding bits.
+// The padding bits of the second byte are set to 1, starting from the MSB.
+func NewBit(data []byte) Bit {
+	if debugMode {
+		incrAllocCount("bit")
+	}
+	cData := (*C.uint8_t)(C.CBytes(data))
+	return Bit{
+		data: cData,
+		size: C.idx_t(len(data)),
+	}
+}
+
+// BitMembers returns the data bytes of a Bit.
+// The first byte contains the padding (number of unused bits in the last byte).
+// Remaining bytes contain the actual bit data.
+func BitMembers(b *Bit) []byte {
+	size := int(b.size)
+	return C.GoBytes(unsafe.Pointer(b.data), C.int(size))
 }
 
 // Helper functions for types with internal fields that need freeing:
