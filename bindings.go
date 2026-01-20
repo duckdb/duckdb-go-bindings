@@ -219,12 +219,12 @@ type (
 	// Use the respective Blob functions to access / write to this type.
 	// This type must be destroyed with DestroyBlob.
 	Blob = C.duckdb_blob
-	// Bit does not export New and Members.
-	// Use the respective Bit functions to access / write to this type.
+	// Bit stores a bit string.
+	// Use NewBit/BitMembers to access this type.
 	// This type must be destroyed with DestroyBit.
 	Bit = C.duckdb_bit
-	// BigNum does not export New and Members.
-	// Use the respective BigNum functions to access / write to this type.
+	// BigNum stores arbitrary precision integers.
+	// Use NewBigNum/BigNumMembers to access/write to this type.
 	// This type must be destroyed with DestroyBigNum.
 	BigNum = C.duckdb_bignum
 )
@@ -449,6 +449,52 @@ func NewListEntry(offset uint64, length uint64) ListEntry {
 // ListEntryMembers returns the offset and length of a duckdb_list_entry.
 func ListEntryMembers(entry *ListEntry) (uint64, uint64) {
 	return uint64(entry.offset), uint64(entry.length)
+}
+
+// NewBigNum creates a BigNum from a byte slice and sign.
+// The data is stored in little endian format (absolute value).
+// The returned BigNum must be destroyed with DestroyBigNum.
+func NewBigNum(data []byte, isNegative bool) BigNum {
+	if debugMode {
+		incrAllocCount("bigNum")
+	}
+	cData := (*C.uint8_t)(C.CBytes(data))
+	return BigNum{
+		data:        cData,
+		size:        C.idx_t(len(data)),
+		is_negative: C.bool(isNegative),
+	}
+}
+
+// BigNumMembers returns the data bytes and sign of a BigNum.
+// The data is in little endian format (absolute value).
+func BigNumMembers(bn *BigNum) ([]byte, bool) {
+	size := int(bn.size)
+	data := C.GoBytes(unsafe.Pointer(bn.data), C.int(size))
+	return data, bool(bn.is_negative)
+}
+
+// NewBit creates a Bit from the given data bytes.
+// BIT byte data has 0 to 7 bits of padding.
+// The first byte contains the number of padding bits.
+// The padding bits of the second byte are set to 1, starting from the MSB.
+func NewBit(data []byte) Bit {
+	if debugMode {
+		incrAllocCount("bit")
+	}
+	cData := (*C.uint8_t)(C.CBytes(data))
+	return Bit{
+		data: cData,
+		size: C.idx_t(len(data)),
+	}
+}
+
+// BitMembers returns the data bytes of a Bit.
+// The first byte contains the padding (number of unused bits in the last byte).
+// Remaining bytes contain the actual bit data.
+func BitMembers(b *Bit) []byte {
+	size := int(b.size)
+	return C.GoBytes(unsafe.Pointer(b.data), C.int(size))
 }
 
 // Helper functions for types with internal fields that need freeing:
@@ -1025,7 +1071,6 @@ func DestroyArrowOptions(options *ArrowOptions) {
 
 func LibraryVersion() string {
 	cStr := C.duckdb_library_version()
-	defer Free(unsafe.Pointer(cStr))
 	return C.GoString(cStr)
 }
 
@@ -2232,12 +2277,9 @@ func GetInterval(v Value) Interval {
 }
 
 // GetValueType wraps duckdb_get_value_type.
-// The return value must be destroyed with DestroyLogicalType.
+// The return value must NOT be destroyed. It lives as long as Value (v) is alive.
 func GetValueType(v Value) LogicalType {
 	logicalType := C.duckdb_get_value_type(v.data())
-	if debugMode {
-		incrAllocCount("logicalType")
-	}
 	return LogicalType{
 		Ptr: unsafe.Pointer(logicalType),
 	}
@@ -3685,96 +3727,6 @@ func TableDescriptionGetColumnName(desc TableDescription, index IdxT) string {
 	defer Free(unsafe.Pointer(cName))
 	return C.GoString(cName)
 }
-
-// ------------------------------------------------------------------ //
-// Arrow Interface (entire interface has deprecation notice)
-// ------------------------------------------------------------------ //
-
-// TODO:
-// duckdb_to_arrow_schema
-// duckdb_data_chunk_to_arrow
-// duckdb_schema_from_arrow
-// duckdb_data_chunk_from_arrow
-
-// DestroyArrowConvertedSchema wraps duckdb_destroy_arrow_converted_schema.
-func DestroyArrowConvertedSchema(schema *ArrowConvertedSchema) {
-	if schema.Ptr == nil {
-		return
-	}
-	if debugMode {
-		decrAllocCount("arrowConvertedSchema")
-	}
-	data := schema.data()
-	C.duckdb_destroy_arrow_converted_schema(&data)
-	schema.Ptr = nil
-}
-
-// TODO:
-// duckdb_query_arrow
-
-func QueryArrowSchema(arrow Arrow, outSchema *ArrowSchema) State {
-	return C.duckdb_query_arrow_schema(arrow.data(), (*C.duckdb_arrow_schema)(outSchema.Ptr))
-}
-
-// TODO:
-// duckdb_prepared_arrow_schema
-// duckdb_result_arrow_array
-
-func QueryArrowArray(arrow Arrow, outArray *ArrowArray) State {
-	return C.duckdb_query_arrow_array(arrow.data(), (*C.duckdb_arrow_array)(outArray.Ptr))
-}
-
-// TODO:
-// duckdb_arrow_column_count
-
-func ArrowRowCount(arrow Arrow) IdxT {
-	return C.duckdb_arrow_row_count(arrow.data())
-}
-
-// TODO:
-// duckdb_arrow_rows_changed
-
-func QueryArrowError(arrow Arrow) string {
-	err := C.duckdb_query_arrow_error(arrow.data())
-	return C.GoString(err)
-}
-
-// DestroyArrow wraps duckdb_destroy_arrow.
-func DestroyArrow(arrow *Arrow) {
-	if arrow.Ptr == nil {
-		return
-	}
-	if debugMode {
-		decrAllocCount("arrow")
-	}
-	data := arrow.data()
-	C.duckdb_destroy_arrow(&data)
-	arrow.Ptr = nil
-}
-
-// TODO:
-// duckdb_destroy_arrow_stream
-
-// ExecutePreparedArrow wraps duckdb_execute_prepared_arrow.
-// outArrow must be destroyed with DestroyArrow.
-func ExecutePreparedArrow(preparedStmt PreparedStatement, outArrow *Arrow) State {
-	var arrow C.duckdb_arrow
-	state := C.duckdb_execute_prepared_arrow(preparedStmt.data(), &arrow)
-	outArrow.Ptr = unsafe.Pointer(arrow)
-	if debugMode {
-		incrAllocCount("arrow")
-	}
-	return state
-}
-
-func ArrowScan(conn Connection, table string, stream ArrowStream) State {
-	cTable := C.CString(table)
-	defer Free(unsafe.Pointer(cTable))
-	return C.duckdb_arrow_scan(conn.data(), cTable, stream.data())
-}
-
-// TODO:
-// duckdb_arrow_array_scan
 
 //===--------------------------------------------------------------------===//
 // Threading Information

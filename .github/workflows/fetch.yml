@@ -10,17 +10,17 @@ jobs:
           ref: ${{ github.head_ref }}
       - name: Fetch Darwin
         run: |
-          make fetch.static.libs DIRECTORY=darwin-arm64 FILENAME=static-libs-osx-arm64
-          make fetch.static.libs DIRECTORY=darwin-amd64 FILENAME=static-libs-osx-amd64
+          make fetch.static.libs PLATFORM=darwin-arm64 FILENAME=static-libs-osx-arm64 COPY_HEADER=1
+          make fetch.static.libs PLATFORM=darwin-amd64 FILENAME=static-libs-osx-amd64
         shell: bash
       - name: Fetch Linux
         run: |
-          make fetch.static.libs DIRECTORY=linux-amd64 FILENAME=static-libs-linux-amd64
-          make fetch.static.libs DIRECTORY=linux-arm64 FILENAME=static-libs-linux-arm64
+          make fetch.static.libs PLATFORM=linux-amd64 FILENAME=static-libs-linux-amd64
+          make fetch.static.libs PLATFORM=linux-arm64 FILENAME=static-libs-linux-arm64
         shell: bash
       - name: Fetch Windows
         run: |
-          make fetch.static.libs DIRECTORY=windows-amd64 FILENAME=static-libs-windows-mingw
+          make fetch.static.libs PLATFORM=windows-amd64 FILENAME=static-libs-windows-mingw
         shell: bash
       - name: Commit
         uses: stefanzweifel/git-auto-commit-action@v5
