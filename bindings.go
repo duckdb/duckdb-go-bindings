@@ -2371,7 +2371,7 @@ func CreateArrayValue(logicalType LogicalType, values []Value) Value {
 // CreateMapValue wraps duckdb_create_map_value.
 // The return value must be destroyed with DestroyValue.
 func CreateMapValue(logicalType LogicalType, keys []Value, values []Value) Value {
-	keyValuesPtr := allocValues(values)
+	keyValuesPtr := allocValues(keys)
 	defer Free(unsafe.Pointer(keyValuesPtr))
 
 	valueValuesPtr := allocValues(values)
