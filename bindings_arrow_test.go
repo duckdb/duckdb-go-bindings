@@ -4,8 +4,10 @@ package duckdb_go_bindings
 
 import (
 	"testing"
+	"unsafe"
 
 	"github.com/apache/arrow-go/v18/arrow/array"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -100,7 +102,8 @@ func TestArrow(t *testing.T) {
 	require.False(t, ErrorDataHasError(ed))
 	defer DestroyArrowConvertedSchema(&convSchema)
 
-	dataChunk, ed := DataChunkFromArrow(conn, newRec, convSchema)
+	dataChunk := CreateDataChunk(types)
+	ed = DataChunkFromArrow(conn, newRec, convSchema, dataChunk)
 	defer DestroyErrorData(&ed)
 	require.False(t, ErrorDataHasError(ed))
 	defer DestroyDataChunk(&dataChunk)
@@ -109,5 +112,26 @@ func TestArrow(t *testing.T) {
 	require.Equal(t, colCount, cc)
 
 	rc := DataChunkGetSize(dataChunk)
-	require.Equal(t, IdxT(rec.NumRows()), rc)
+	assert.Equal(t, IdxT(3), rc)
+
+	// check chunk values
+	vecInt := DataChunkGetVector(chunk, IdxT(0))
+	vecStr := DataChunkGetVector(chunk, IdxT(1))
+	for rowIdx := range 3 {
+		intVal := getPrimitive[int32](vecInt, IdxT(rowIdx))
+		assert.Equal(t, int32(rowIdx+1), intVal)
+
+		strT := getPrimitive[StringT](vecStr, IdxT(rowIdx))
+		strVal := StringTData(&strT)
+		assert.Equal(t, []string{"foo", "bar", ""}[rowIdx], strVal)
+	}
+}
+
+func getPrimitive[T any](vec Vector, rowIdx IdxT) T {
+	dataPtr := VectorGetData(vec)
+	var zero T
+	elementSize := unsafe.Sizeof(zero)
+	offset := uintptr(rowIdx) * elementSize
+	ptr := unsafe.Add(dataPtr, offset)
+	return *(*T)(ptr)
 }
