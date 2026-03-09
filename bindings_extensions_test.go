@@ -28,6 +28,10 @@ func TestOpenSQLiteDB(t *testing.T) {
 		t.Fail()
 	}
 
+	extDir, err := os.MkdirTemp("", "duckdb-ext-*")
+	require.NoError(t, err)
+	SetConfig(config, "extension_directory", extDir)
+
 	var db Database
 	defer Close(&db)
 
