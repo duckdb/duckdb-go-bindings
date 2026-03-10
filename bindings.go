@@ -571,6 +571,7 @@ type Result struct {
 // *duckdb_table_function_t
 // *duckdb_cast_function_t
 // *duckdb_replacement_callback_t
+// *duckdb_logger_write_log_entry_t
 
 // NOTE: We export the Ptr of each wrapped type pointer to allow (void *) typedef's of callback functions.
 // See https://golang.org/issue/19837 and https://golang.org/issue/19835.
@@ -881,6 +882,15 @@ type ArrowOptions struct {
 
 func (options *ArrowOptions) data() C.duckdb_arrow_options {
 	return C.duckdb_arrow_options(options.Ptr)
+}
+
+// LogStorage wraps *duckdb_log_storage.
+type LogStorage struct {
+	Ptr unsafe.Pointer
+}
+
+func (logStorage *LogStorage) data() C.duckdb_log_storage {
+	return C.duckdb_log_storage(logStorage.Ptr)
 }
 
 // ------------------------------------------------------------------ //
@@ -3596,6 +3606,10 @@ func AppenderFlush(appender Appender) State {
 	return C.duckdb_appender_flush(appender.data())
 }
 
+func AppenderClear(appender Appender) State {
+	return C.duckdb_appender_clear(appender.data())
+}
+
 func AppenderClose(appender Appender) State {
 	return C.duckdb_appender_close(appender.data())
 }
@@ -3726,10 +3740,26 @@ func ColumnHasDefault(desc TableDescription, index IdxT, outBool *bool) State {
 	return state
 }
 
+func TableDescriptionGetColumnCount(desc TableDescription) IdxT {
+	return C.duckdb_table_description_get_column_count(desc.data())
+}
+
 func TableDescriptionGetColumnName(desc TableDescription, index IdxT) string {
 	cName := C.duckdb_table_description_get_column_name(desc.data(), index)
 	defer Free(unsafe.Pointer(cName))
 	return C.GoString(cName)
+}
+
+// TableDescriptionGetColumnType wraps duckdb_table_description_get_column_type.
+// The return value must be destroyed with DestroyLogicalType.
+func TableDescriptionGetColumnType(desc TableDescription, index IdxT) LogicalType {
+	logicalType := C.duckdb_table_description_get_column_type(desc.data(), index)
+	if debugMode {
+		incrAllocCount("logicalType")
+	}
+	return LogicalType{
+		Ptr: unsafe.Pointer(logicalType),
+	}
 }
 
 //===--------------------------------------------------------------------===//
@@ -3847,6 +3877,55 @@ func ExpressionFold(ctx ClientContext, expr Expression, outValue *Value) ErrorDa
 	return ErrorData{
 		Ptr: unsafe.Pointer(errorData),
 	}
+}
+
+// ------------------------------------------------------------------ //
+// Logging Interface
+// ------------------------------------------------------------------ //
+
+// CreateLogStorage wraps duckdb_create_log_storage.
+// The return value must be destroyed with DestroyLogStorage.
+func CreateLogStorage() LogStorage {
+	logStorage := C.duckdb_create_log_storage()
+	if debugMode {
+		incrAllocCount("logStorage")
+	}
+	return LogStorage{
+		Ptr: unsafe.Pointer(logStorage),
+	}
+}
+
+// DestroyLogStorage wraps duckdb_destroy_log_storage.
+func DestroyLogStorage(logStorage *LogStorage) {
+	if logStorage.Ptr == nil {
+		return
+	}
+	if debugMode {
+		decrAllocCount("logStorage")
+	}
+	data := logStorage.data()
+	C.duckdb_destroy_log_storage(&data)
+	logStorage.Ptr = nil
+}
+
+func LogStorageSetWriteLogEntry(logStorage LogStorage, callbackPtr unsafe.Pointer) {
+	callback := C.duckdb_logger_write_log_entry_t(callbackPtr)
+	C.duckdb_log_storage_set_write_log_entry(logStorage.data(), callback)
+}
+
+func LogStorageSetExtraData(logStorage LogStorage, extraDataPtr unsafe.Pointer, callbackPtr unsafe.Pointer) {
+	callback := C.duckdb_delete_callback_t(callbackPtr)
+	C.duckdb_log_storage_set_extra_data(logStorage.data(), extraDataPtr, callback)
+}
+
+func LogStorageSetName(logStorage LogStorage, name string) {
+	cName := C.CString(name)
+	defer Free(unsafe.Pointer(cName))
+	C.duckdb_log_storage_set_name(logStorage.data(), cName)
+}
+
+func RegisterLogStorage(db Database, logStorage LogStorage) State {
+	return C.duckdb_register_log_storage(db.data(), logStorage.data())
 }
 
 // ------------------------------------------------------------------ //
