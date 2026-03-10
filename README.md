@@ -41,6 +41,17 @@ Older versions require platform-specific imports (e.g., `github.com/duckdb/duckd
 | v1.2.1         | v0.1.13 | v0.1.8  | v0.1.8  | v0.1.8  |
 | v1.2.0         | v0.1.10 | v0.1.5  | v0.1.5  | v0.1.5  |
 
+## Known Issues
+
+### Malformed default extension directory on Windows (DuckDB v1.5.0)
+
+DuckDB v1.5.0 has a [regression](https://github.com/duckdb/duckdb/pull/21260) where the default extension directory is malformed on Windows. This causes extension directory creation to fail. To work around this, set `extension_directory` explicitly in your DuckDB configuration:
+
+```go
+config := duckdb.CreateConfig()
+duckdb.SetConfig(config, "extension_directory", `C:\path\to\ext\dir`)
+```
+
 ## Local Development
 
 To develop locally, copy the workspace template file:
