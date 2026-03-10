@@ -15,6 +15,14 @@ Minimum Go version: 1.24.
 
 ## Releases
 
+### Semantic versioning
+
+Starting with DuckDB `v1.5.0` the duckdb-go-bindings package changes its versioning scheme to contain
+- the DuckDB release version
+- the duckdb-go-bindings patch iteration
+
+For `v1.5.0` the corresponding tagged release is `v0.10500.0`.
+
 ### Single module (v0.3.0+)
 
 Starting with v0.3.0, the module includes pre-built static libraries for all platforms. Simply import `github.com/duckdb/duckdb-go-bindings`.
