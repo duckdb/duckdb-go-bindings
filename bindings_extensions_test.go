@@ -2,6 +2,7 @@ package duckdb_go_bindings
 
 import (
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -28,9 +29,15 @@ func TestOpenSQLiteDB(t *testing.T) {
 		t.Fail()
 	}
 
-	extDir, err := os.MkdirTemp("", "duckdb-ext-*")
-	require.NoError(t, err)
-	SetConfig(config, "extension_directory", extDir)
+	// Work around a DuckDB v1.5.0 regression where the default extension
+	// directory is malformed on Windows (https://github.com/duckdb/duckdb/pull/21260).
+	// Uses os.MkdirTemp instead of t.TempDir() to avoid Windows cleanup failures when DuckDB
+	// still holds extension file handles.
+	if runtime.GOOS == "windows" {
+		extDir, err := os.MkdirTemp("", "duckdb-ext-*")
+		require.NoError(t, err)
+		SetConfig(config, "extension_directory", extDir)
+	}
 
 	var db Database
 	defer Close(&db)
