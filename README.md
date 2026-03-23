@@ -51,10 +51,10 @@ Older versions require platform-specific imports (e.g., `github.com/duckdb/duckd
 
 ## Known Issues
 
-### Malformed default extension directory on Windows (DuckDB v1.5.0)
+### Malformed default extension directory on Windows (DuckDB v1.5.0 only)
 
 DuckDB v1.5.0 has a [regression](https://github.com/duckdb/duckdb/pull/21260) where the default extension directory is malformed on Windows. 
-This causes extension directory creation to fail and has been fixed in `v1.5.1`.
+This causes extension directory creation to fail and **has been fixed in `v1.5.1`.**
 To work around this, set `extension_directory` explicitly in your DuckDB configuration:
 
 ```go
