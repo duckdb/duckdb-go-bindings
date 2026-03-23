@@ -51,9 +51,11 @@ Older versions require platform-specific imports (e.g., `github.com/duckdb/duckd
 
 ## Known Issues
 
-### Malformed default extension directory on Windows (DuckDB v1.5.0)
+### Malformed default extension directory on Windows (DuckDB v1.5.0 only)
 
-DuckDB v1.5.0 has a [regression](https://github.com/duckdb/duckdb/pull/21260) where the default extension directory is malformed on Windows. This causes extension directory creation to fail. To work around this, set `extension_directory` explicitly in your DuckDB configuration:
+DuckDB v1.5.0 has a [regression](https://github.com/duckdb/duckdb/pull/21260) where the default extension directory is malformed on Windows. 
+This causes extension directory creation to fail and **has been fixed in `v1.5.1`.**
+To work around this, set `extension_directory` explicitly in your DuckDB configuration:
 
 ```go
 config := duckdb.CreateConfig()
@@ -74,12 +76,11 @@ This sets up Go workspaces to use the local lib/\* submodules instead of fetchin
 
 1. Create a new branch and update the `DUCKDB_VERSION` in the `Makefile`.
 2. Invoke the `Fetch and Push Libs` workflow on the new branch (it commits fetched libs to the branch; it does not tag).
-3. Update the `Releases` table in the `README.md` above.
-4. If the header (`duckdb.h`) has changes, add all changes (new types, functions, etc.) to the bindings.
-5. Open a PR.
-6. Wait for all tests to pass.
-7. Merge the PR into `main` (direct pushes to `main` are not allowed).
-8. Publish tags using the release script (re-entrant, safe to run multiple times):
+3. If the header (`duckdb.h`) has changes, add all changes (new types, functions, etc.) to the bindings.
+4. Open a PR.
+5. Wait for all tests to pass.
+6. Merge the PR into `main` (direct pushes to `main` are not allowed).
+7. Publish tags using the release script (re-entrant, safe to run multiple times):
 
 ```bash
 ./scripts/release.sh v0.3.2           # pushes to 'origin'
