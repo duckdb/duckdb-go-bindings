@@ -919,7 +919,7 @@ func GetOrCreateFromCache(cache InstanceCache, path string, outDb *Database, con
 	cPath := C.CString(path)
 	defer Free(unsafe.Pointer(cPath))
 	var err *C.char
-	defer Free(unsafe.Pointer(err))
+	defer func() { Free(unsafe.Pointer(err)) }()
 
 	var db C.duckdb_database
 	state := C.duckdb_get_or_create_from_cache(cache.data(), cPath, &db, config.data(), &err)
@@ -968,7 +968,7 @@ func OpenExt(path string, outDb *Database, config Config, errMsg *string) State 
 	cPath := C.CString(path)
 	defer Free(unsafe.Pointer(cPath))
 	var err *C.char
-	defer Free(unsafe.Pointer(err))
+	defer func() { Free(unsafe.Pointer(err)) }()
 
 	var db C.duckdb_database
 	state := C.duckdb_open_ext(cPath, &db, config.data(), &err)
