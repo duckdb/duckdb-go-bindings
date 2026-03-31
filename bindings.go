@@ -3302,7 +3302,7 @@ func TableFunctionGetClientContext(info BindInfo, outCtx *ClientContext) {
 	C.duckdb_table_function_get_client_context(info.data(), &ctx)
 	outCtx.Ptr = unsafe.Pointer(ctx)
 	if debugMode {
-		decrAllocCount("ctx")
+		incrAllocCount("ctx")
 	}
 }
 
