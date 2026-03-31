@@ -3804,7 +3804,7 @@ func StreamFetchChunk(res Result, outChunk *DataChunk) State {
 
 func FetchChunk(res Result) DataChunk {
 	chunk := C.duckdb_fetch_chunk(res.data)
-	if debugMode {
+	if debugMode && chunk != nil {
 		incrAllocCount("chunk")
 	}
 	return DataChunk{
