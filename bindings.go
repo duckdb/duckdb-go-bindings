@@ -3302,7 +3302,7 @@ func TableFunctionGetClientContext(info BindInfo, outCtx *ClientContext) {
 	C.duckdb_table_function_get_client_context(info.data(), &ctx)
 	outCtx.Ptr = unsafe.Pointer(ctx)
 	if debugMode {
-		decrAllocCount("ctx")
+		incrAllocCount("ctx")
 	}
 }
 
@@ -3804,7 +3804,7 @@ func StreamFetchChunk(res Result, outChunk *DataChunk) State {
 
 func FetchChunk(res Result) DataChunk {
 	chunk := C.duckdb_fetch_chunk(res.data)
-	if debugMode {
+	if debugMode && chunk != nil {
 		incrAllocCount("chunk")
 	}
 	return DataChunk{
