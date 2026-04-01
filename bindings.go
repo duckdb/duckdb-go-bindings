@@ -547,8 +547,7 @@ type Column struct {
 // See https://github.com/golang/go/issues/28606#issuecomment-2184269962.
 // When using a type alias, duckdb_result itself contains a Go unsafe.Pointer for its 'void *internal_data' field.
 type Result struct {
-	data      C.duckdb_result
-	destroyed bool
+	data C.duckdb_result
 }
 
 // ------------------------------------------------------------------ //
@@ -1213,14 +1212,14 @@ func Query(conn Connection, query string, outRes *Result) State {
 
 // DestroyResult wraps duckdb_destroy_result.
 func DestroyResult(res *Result) {
-	if res == nil || res.destroyed {
+	if res == nil || res.data.internal_data == nil {
 		return
 	}
 	if debugMode {
 		decrAllocCount("res")
 	}
 	C.duckdb_destroy_result(&res.data)
-	res.destroyed = true
+	res.data.internal_data = nil
 }
 
 func ColumnName(res *Result, col IdxT) string {
