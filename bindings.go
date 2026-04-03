@@ -1349,6 +1349,18 @@ func StringTData(strT *StringT) string {
 	return string(C.GoBytes(ptr, length))
 }
 
+func ValidUtf8Check(blob []byte) ErrorData {
+	cBytes := (*C.char)(C.CBytes(blob))
+	defer Free(unsafe.Pointer(cBytes))
+	errorData := C.duckdb_valid_utf8_check(cBytes, IdxT(len(blob)))
+	if debugMode {
+		incrAllocCount("errorData")
+	}
+	return ErrorData{
+		Ptr: unsafe.Pointer(errorData),
+	}
+}
+
 // ------------------------------------------------------------------ //
 // Date Time Timestamp Helpers
 // ------------------------------------------------------------------ //
@@ -2909,6 +2921,12 @@ func VectorAssignStringElementLen(vec Vector, index IdxT, blob []byte) {
 	cBytes := (*C.char)(C.CBytes(blob))
 	defer Free(unsafe.Pointer(cBytes))
 	C.duckdb_vector_assign_string_element_len(vec.data(), index, cBytes, IdxT(len(blob)))
+}
+
+func UnsafeVectorAssignStringElementLen(vec Vector, index IdxT, blob []byte) {
+	cBytes := (*C.char)(C.CBytes(blob))
+	defer Free(unsafe.Pointer(cBytes))
+	C.duckdb_unsafe_vector_assign_string_element_len(vec.data(), index, cBytes, IdxT(len(blob)))
 }
 
 func ListVectorGetChild(vec Vector) Vector {
