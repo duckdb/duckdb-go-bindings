@@ -83,8 +83,8 @@ This sets up Go workspaces to use the local lib/\* submodules instead of fetchin
 7. Publish tags using the release script (re-entrant, safe to run multiple times):
 
 ```bash
-./scripts/release.sh v0.3.2           # pushes to 'origin'
-./scripts/release.sh v0.3.2 upstream  # pushes to custom remote
+./scripts/release.sh v0.10502.0           # pushes to 'origin'
+./scripts/release.sh v0.10502.0 upstream  # pushes to custom remote
 ```
 
 The script handles:
