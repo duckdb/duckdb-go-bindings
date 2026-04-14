@@ -62,6 +62,7 @@ const (
 	TypeStringLiteral  Type = C.DUCKDB_TYPE_STRING_LITERAL
 	TypeIntegerLiteral Type = C.DUCKDB_TYPE_INTEGER_LITERAL
 	TypeTimeNS         Type = C.DUCKDB_TYPE_TIME_NS
+	TypeGeometry       Type = C.DUCKDB_TYPE_GEOMETRY
 )
 
 // State wraps duckdb_state.
@@ -2782,6 +2783,15 @@ func UnionTypeMemberType(logicalType LogicalType, index IdxT) LogicalType {
 	return LogicalType{
 		Ptr: unsafe.Pointer(t),
 	}
+}
+
+func GeometryTypeGetCRS(logicalType LogicalType) string {
+	crs := C.duckdb_geometry_type_get_crs(logicalType.data())
+	if crs == nil {
+		return ""
+	}
+	defer Free(unsafe.Pointer(crs))
+	return C.GoString(crs)
 }
 
 // DestroyLogicalType wraps duckdb_destroy_logical_type.
