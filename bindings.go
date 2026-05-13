@@ -3,6 +3,7 @@ package duckdb_go_bindings
 /*
 #include <duckdb.h>
 #include <stdlib.h>
+#include <string.h>
 #include <duckdb_go_bindings.h>
 */
 import "C"
@@ -917,20 +918,20 @@ func CreateInstanceCache() InstanceCache {
 // GetOrCreateFromCache wraps duckdb_get_or_create_from_cache.
 // outDb must be closed with Close.
 func GetOrCreateFromCache(cache InstanceCache, path string, outDb *Database, config Config, errMsg *string) State {
-	cPath := C.CString(path)
-	defer Free(unsafe.Pointer(cPath))
-	var err *C.char
-	defer func() { Free(unsafe.Pointer(err)) }()
+	return withNULString(path, func(cPath *C.char) State {
+		var err *C.char
+		defer func() { Free(unsafe.Pointer(err)) }()
 
-	var db C.duckdb_database
-	state := C.duckdb_get_or_create_from_cache(cache.data(), cPath, &db, config.data(), &err)
-	outDb.Ptr = unsafe.Pointer(db)
-	*errMsg = C.GoString(err)
+		var db C.duckdb_database
+		state := C.duckdb_get_or_create_from_cache(cache.data(), cPath, &db, config.data(), &err)
+		outDb.Ptr = unsafe.Pointer(db)
+		*errMsg = C.GoString(err)
 
-	if debugMode {
-		incrAllocCount("db")
-	}
-	return state
+		if debugMode {
+			incrAllocCount("db")
+		}
+		return State(state)
+	})
 }
 
 // DestroyInstanceCache wraps duckdb_destroy_instance_cache.
@@ -950,36 +951,35 @@ func DestroyInstanceCache(cache *InstanceCache) {
 // outDb must be closed with Close.
 // Deprecated: Use OpenExt.
 func Open(path string, outDb *Database) State {
-	cPath := C.CString(path)
-	defer Free(unsafe.Pointer(cPath))
+	return withNULString(path, func(cPath *C.char) State {
+		var db C.duckdb_database
+		state := C.duckdb_open(cPath, &db)
+		outDb.Ptr = unsafe.Pointer(db)
 
-	var db C.duckdb_database
-	state := C.duckdb_open(cPath, &db)
-	outDb.Ptr = unsafe.Pointer(db)
-
-	if debugMode {
-		incrAllocCount("db")
-	}
-	return state
+		if debugMode {
+			incrAllocCount("db")
+		}
+		return State(state)
+	})
 }
 
 // OpenExt wraps duckdb_open_ext.
 // outDb must be closed with Close.
 func OpenExt(path string, outDb *Database, config Config, errMsg *string) State {
-	cPath := C.CString(path)
-	defer Free(unsafe.Pointer(cPath))
-	var err *C.char
-	defer func() { Free(unsafe.Pointer(err)) }()
+	return withNULString(path, func(cPath *C.char) State {
+		var err *C.char
+		defer func() { Free(unsafe.Pointer(err)) }()
 
-	var db C.duckdb_database
-	state := C.duckdb_open_ext(cPath, &db, config.data(), &err)
-	outDb.Ptr = unsafe.Pointer(db)
-	*errMsg = C.GoString(err)
+		var db C.duckdb_database
+		state := C.duckdb_open_ext(cPath, &db, config.data(), &err)
+		outDb.Ptr = unsafe.Pointer(db)
+		*errMsg = C.GoString(err)
 
-	if debugMode {
-		incrAllocCount("db")
-	}
-	return state
+		if debugMode {
+			incrAllocCount("db")
+		}
+		return State(state)
+	})
 }
 
 // Close wraps duckdb_close.
@@ -1088,15 +1088,15 @@ func LibraryVersion() string {
 // GetTableNames wraps duckdb_get_table_names.
 // The return value must be destroyed with DestroyValue.
 func GetTableNames(conn Connection, query string, qualified bool) Value {
-	cQuery := C.CString(query)
-	defer Free(unsafe.Pointer(cQuery))
-	v := C.duckdb_get_table_names(conn.data(), cQuery, C.bool(qualified))
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return withNULString(query, func(cQuery *C.char) Value {
+		v := C.duckdb_get_table_names(conn.data(), cQuery, C.bool(qualified))
+		if debugMode {
+			incrAllocCount("v")
+		}
+		return Value{
+			Ptr: unsafe.Pointer(v),
+		}
+	})
 }
 
 // ------------------------------------------------------------------ //
@@ -1130,11 +1130,11 @@ func GetConfigFlag(index uint64, outName *string, outDescription *string) State 
 }
 
 func SetConfig(config Config, name string, option string) State {
-	cName := C.CString(name)
-	defer Free(unsafe.Pointer(cName))
-	cOption := C.CString(option)
-	defer Free(unsafe.Pointer(cOption))
-	return C.duckdb_set_config(config.data(), cName, cOption)
+	return withNULString(name, func(cName *C.char) State {
+		return withNULString(option, func(cOption *C.char) State {
+			return C.duckdb_set_config(config.data(), cName, cOption)
+		})
+	})
 }
 
 // DestroyConfig wraps duckdb_destroy_config.
@@ -1157,16 +1157,15 @@ func DestroyConfig(config *Config) {
 // CreateErrorData wraps duckdb_create_error_data.
 // The return value must be destroyed with DestroyErrorData.
 func CreateErrorData(t ErrorType, msg string) ErrorData {
-	cMsg := C.CString(msg)
-	defer Free(unsafe.Pointer(cMsg))
-
-	errorData := C.duckdb_create_error_data(t, cMsg)
-	if debugMode {
-		incrAllocCount("errorData")
-	}
-	return ErrorData{
-		Ptr: unsafe.Pointer(errorData),
-	}
+	return withNULString(msg, func(cMsg *C.char) ErrorData {
+		errorData := C.duckdb_create_error_data(t, cMsg)
+		if debugMode {
+			incrAllocCount("errorData")
+		}
+		return ErrorData{
+			Ptr: unsafe.Pointer(errorData),
+		}
+	})
 }
 
 // DestroyErrorData wraps duckdb_destroy_error_data.
@@ -1205,10 +1204,9 @@ func Query(conn Connection, query string, outRes *Result) State {
 	if debugMode {
 		incrAllocCount("res")
 	}
-	cQuery := C.CString(query)
-	defer Free(unsafe.Pointer(cQuery))
-
-	return C.duckdb_query(conn.data(), cQuery, &outRes.data)
+	return withNULString(query, func(cQuery *C.char) State {
+		return C.duckdb_query(conn.data(), cQuery, &outRes.data)
+	})
 }
 
 // DestroyResult wraps duckdb_destroy_result.
@@ -1323,6 +1321,41 @@ func ValueInt64(res *Result, col IdxT, row IdxT) int64 {
 // Helpers
 // ------------------------------------------------------------------ //
 
+// maxInlineNULString was planned for stack copies, but pointers into large stack arrays escape to the
+// Go heap when passed to cgo — use only the pool for non-empty strings.
+const maxInlineNULString = 2048
+
+var pooledNULStringBuf = sync.Pool{
+	New: func() any {
+		b := make([]byte, 0, maxInlineNULString+1)
+		return &b
+	},
+}
+
+// withNULString passes a NUL-terminated copy of s to fn. cq is valid only until fn returns
+// (DuckDB parses/copies SQL and paths synchronously for the wrapped C APIs).
+func withNULString[T any](s string, fn func(cq *C.char) T) T {
+	n := len(s)
+	if n == 0 {
+		var z [1]byte
+		z[0] = 0
+		return fn((*C.char)(unsafe.Pointer(&z[0])))
+	}
+	bp := pooledNULStringBuf.Get().(*[]byte)
+	buf := *bp
+	if cap(buf) < n+1 {
+		buf = make([]byte, n+1)
+	} else {
+		buf = buf[:n+1]
+	}
+	copy(buf, s)
+	buf[n] = 0
+	v := fn((*C.char)(unsafe.Pointer(&buf[0])))
+	*bp = buf[:0]
+	pooledNULStringBuf.Put(bp)
+	return v
+}
+
 // TODO:
 // duckdb_malloc
 
@@ -1340,20 +1373,22 @@ func StringIsInlined(strT StringT) bool {
 }
 
 func StringTLength(strT StringT) uint32 {
-	length := C.duckdb_string_t_length(strT)
-	return uint32(length)
+	return uint32(C.duckdb_string_t_length(strT))
 }
 
 func StringTData(strT *StringT) string {
-	length := C.int(StringTLength(*strT))
+	// duckdb_string_t_length takes duckdb_string_t by value; duckdb_string_t_data takes a pointer.
+	length := C.int(C.duckdb_string_t_length(*strT))
 	ptr := unsafe.Pointer(C.duckdb_string_t_data(strT))
 	return string(C.GoBytes(ptr, length))
 }
 
 func ValidUtf8Check(blob []byte) ErrorData {
-	cBytes := (*C.char)(C.CBytes(blob))
-	defer Free(unsafe.Pointer(cBytes))
-	errorData := C.duckdb_valid_utf8_check(cBytes, IdxT(len(blob)))
+	var cBuf *C.char
+	if len(blob) > 0 {
+		cBuf = (*C.char)(unsafe.Pointer(&blob[0]))
+	}
+	errorData := C.duckdb_valid_utf8_check(cBuf, IdxT(len(blob)))
 	if debugMode {
 		incrAllocCount("errorData")
 	}
@@ -1461,16 +1496,15 @@ func DecimalToDouble(d Decimal) float64 {
 // Prepare wraps duckdb_prepare.
 // outPreparedStmt must be destroyed with DestroyPrepare.
 func Prepare(conn Connection, query string, outPreparedStmt *PreparedStatement) State {
-	cQuery := C.CString(query)
-	defer Free(unsafe.Pointer(cQuery))
-
-	var preparedStmt C.duckdb_prepared_statement
-	state := C.duckdb_prepare(conn.data(), cQuery, &preparedStmt)
-	outPreparedStmt.Ptr = unsafe.Pointer(preparedStmt)
-	if debugMode {
-		incrAllocCount("preparedStmt")
-	}
-	return state
+	return withNULString(query, func(cQuery *C.char) State {
+		var preparedStmt C.duckdb_prepared_statement
+		state := C.duckdb_prepare(conn.data(), cQuery, &preparedStmt)
+		outPreparedStmt.Ptr = unsafe.Pointer(preparedStmt)
+		if debugMode {
+			incrAllocCount("preparedStmt")
+		}
+		return state
+	})
 }
 
 // DestroyPrepare wraps duckdb_destroy_prepare.
@@ -1560,9 +1594,9 @@ func BindValue(preparedStmt PreparedStatement, index IdxT, v Value) State {
 }
 
 func BindParameterIndex(preparedStmt PreparedStatement, outIndex *IdxT, name string) State {
-	cName := C.CString(name)
-	defer Free(unsafe.Pointer(cName))
-	return C.duckdb_bind_parameter_index(preparedStmt.data(), outIndex, cName)
+	return withNULString(name, func(cName *C.char) State {
+		return C.duckdb_bind_parameter_index(preparedStmt.data(), outIndex, cName)
+	})
 }
 
 func BindBoolean(preparedStmt PreparedStatement, index IdxT, v bool) State {
@@ -1642,21 +1676,23 @@ func BindInterval(preparedStmt PreparedStatement, index IdxT, v Interval) State 
 }
 
 func BindVarchar(preparedStmt PreparedStatement, index IdxT, v string) State {
-	cStr := C.CString(v)
-	defer Free(unsafe.Pointer(cStr))
-	return C.duckdb_bind_varchar(preparedStmt.data(), index, cStr)
+	return BindVarcharLength(preparedStmt, index, v, IdxT(len(v)))
 }
 
 func BindVarcharLength(preparedStmt PreparedStatement, index IdxT, v string, length IdxT) State {
-	cStr := C.CString(v)
-	defer Free(unsafe.Pointer(cStr))
+	var cStr *C.char
+	if length > 0 {
+		cStr = (*C.char)(unsafe.Pointer(unsafe.StringData(v)))
+	}
 	return C.duckdb_bind_varchar_length(preparedStmt.data(), index, cStr, length)
 }
 
 func BindBlob(preparedStmt PreparedStatement, index IdxT, v []byte) State {
-	cBytes := C.CBytes(v)
-	defer Free(cBytes)
-	return C.duckdb_bind_blob(preparedStmt.data(), index, cBytes, IdxT(len(v)))
+	var data unsafe.Pointer
+	if len(v) > 0 {
+		data = unsafe.Pointer(&v[0])
+	}
+	return C.duckdb_bind_blob(preparedStmt.data(), index, data, IdxT(len(v)))
 }
 
 func BindNull(preparedStmt PreparedStatement, index IdxT) State {
@@ -1693,16 +1729,15 @@ func ExecutePreparedStreaming(preparedStmt PreparedStatement, outRes *Result) St
 // ExtractStatements wraps duckdb_extract_statements.
 // outExtractedStmts must be destroyed with DestroyExtracted.
 func ExtractStatements(conn Connection, query string, outExtractedStmts *ExtractedStatements) IdxT {
-	cQuery := C.CString(query)
-	defer Free(unsafe.Pointer(cQuery))
-
-	var extractedStmts C.duckdb_extracted_statements
-	count := C.duckdb_extract_statements(conn.data(), cQuery, &extractedStmts)
-	outExtractedStmts.Ptr = unsafe.Pointer(extractedStmts)
-	if debugMode {
-		incrAllocCount("extractedStmts")
-	}
-	return count
+	return withNULString(query, func(cQuery *C.char) IdxT {
+		var extractedStmts C.duckdb_extracted_statements
+		count := C.duckdb_extract_statements(conn.data(), cQuery, &extractedStmts)
+		outExtractedStmts.Ptr = unsafe.Pointer(extractedStmts)
+		if debugMode {
+			incrAllocCount("extractedStmts")
+		}
+		return count
+	})
 }
 
 // PrepareExtractedStatement wraps duckdb_prepare_extracted_statement.
@@ -1820,25 +1855,19 @@ func DestroyValue(v *Value) {
 	v.Ptr = nil
 }
 
-// CreateVarchar wraps duckdb_create_varchar.
+// CreateVarchar wraps duckdb_create_varchar_length using the full string length.
 // The return value must be destroyed with DestroyValue.
 func CreateVarchar(str string) Value {
-	cStr := C.CString(str)
-	defer Free(unsafe.Pointer(cStr))
-	v := C.duckdb_create_varchar(cStr)
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return CreateVarcharLength(str, IdxT(len(str)))
 }
 
 // CreateVarcharLength wraps duckdb_create_varchar_length.
 // The return value must be destroyed with DestroyValue.
 func CreateVarcharLength(str string, length IdxT) Value {
-	cStr := C.CString(str)
-	defer Free(unsafe.Pointer(cStr))
+	var cStr *C.char
+	if length > 0 {
+		cStr = (*C.char)(unsafe.Pointer(unsafe.StringData(str)))
+	}
 	v := C.duckdb_create_varchar_length(cStr, length)
 	if debugMode {
 		incrAllocCount("v")
@@ -2151,10 +2180,11 @@ func CreateInterval(val Interval) Value {
 // CreateBlob wraps duckdb_create_blob.
 // The return value must be destroyed with DestroyValue.
 func CreateBlob(val []byte) Value {
-	cBytes := (*C.uint8_t)(C.CBytes(val))
-	defer Free(unsafe.Pointer(cBytes))
-
-	v := C.duckdb_create_blob(cBytes, IdxT(len(val)))
+	var data *C.uint8_t
+	if len(val) > 0 {
+		data = (*C.uint8_t)(unsafe.Pointer(&val[0]))
+	}
+	v := C.duckdb_create_blob(data, IdxT(len(val)))
 	if debugMode {
 		incrAllocCount("v")
 	}
@@ -2540,9 +2570,10 @@ func LogicalTypeGetAlias(logicalType LogicalType) string {
 }
 
 func LogicalTypeSetAlias(logicalType LogicalType, alias string) {
-	cAlias := C.CString(alias)
-	defer Free(unsafe.Pointer(cAlias))
-	C.duckdb_logical_type_set_alias(logicalType.data(), cAlias)
+	withNULString(alias, func(cAlias *C.char) struct{} {
+		C.duckdb_logical_type_set_alias(logicalType.data(), cAlias)
+		return struct{}{}
+	})
 }
 
 // CreateListType wraps duckdb_create_list_type.
@@ -2587,13 +2618,12 @@ func CreateUnionType(types []LogicalType, names []string) LogicalType {
 	typesPtr := allocLogicalTypes(types)
 	defer Free(unsafe.Pointer(typesPtr))
 
-	namesPtr := allocNames(names)
-	defer Free(unsafe.Pointer(namesPtr))
+	namesAlloc := allocNames(names)
+	defer freeNameList(namesAlloc)
 	count := IdxT(len(types))
-	defer C.duckdb_go_bindings_free_names(namesPtr, count)
 
-	// Create the STRUCT type.
-	logicalType := C.duckdb_create_union_type(typesPtr, namesPtr, count)
+	// Create the UNION type.
+	logicalType := C.duckdb_create_union_type(typesPtr, namesAlloc.arr, count)
 
 	if debugMode {
 		incrAllocCount("logicalType")
@@ -2609,13 +2639,12 @@ func CreateStructType(types []LogicalType, names []string) LogicalType {
 	typesPtr := allocLogicalTypes(types)
 	defer Free(unsafe.Pointer(typesPtr))
 
-	namesPtr := allocNames(names)
-	defer Free(unsafe.Pointer(namesPtr))
+	namesAlloc := allocNames(names)
+	defer freeNameList(namesAlloc)
 	count := IdxT(len(types))
-	defer C.duckdb_go_bindings_free_names(namesPtr, count)
 
 	// Create the STRUCT type.
-	logicalType := C.duckdb_create_struct_type(typesPtr, namesPtr, count)
+	logicalType := C.duckdb_create_struct_type(typesPtr, namesAlloc.arr, count)
 
 	if debugMode {
 		incrAllocCount("logicalType")
@@ -2628,13 +2657,12 @@ func CreateStructType(types []LogicalType, names []string) LogicalType {
 // CreateEnumType wraps duckdb_create_enum_type.
 // The return value must be destroyed with DestroyLogicalType.
 func CreateEnumType(names []string) LogicalType {
-	namesPtr := allocNames(names)
-	defer Free(unsafe.Pointer(namesPtr))
+	namesAlloc := allocNames(names)
+	defer freeNameList(namesAlloc)
 	count := IdxT(len(names))
-	defer C.duckdb_go_bindings_free_names(namesPtr, count)
 
 	// Create the ENUM type.
-	logicalType := C.duckdb_create_enum_type(namesPtr, count)
+	logicalType := C.duckdb_create_enum_type(namesAlloc.arr, count)
 
 	if debugMode {
 		incrAllocCount("logicalType")
@@ -2922,21 +2950,28 @@ func VectorEnsureValidityWritable(vec Vector) {
 }
 
 func VectorAssignStringElement(vec Vector, index IdxT, str string) {
-	cStr := C.CString(str)
-	defer Free(unsafe.Pointer(cStr))
-	C.duckdb_vector_assign_string_element(vec.data(), index, cStr)
+	var cStr *C.char
+	n := IdxT(len(str))
+	if n > 0 {
+		cStr = (*C.char)(unsafe.Pointer(unsafe.StringData(str)))
+	}
+	C.duckdb_vector_assign_string_element_len(vec.data(), index, cStr, n)
 }
 
 func VectorAssignStringElementLen(vec Vector, index IdxT, blob []byte) {
-	cBytes := (*C.char)(C.CBytes(blob))
-	defer Free(unsafe.Pointer(cBytes))
-	C.duckdb_vector_assign_string_element_len(vec.data(), index, cBytes, IdxT(len(blob)))
+	var cBuf *C.char
+	if len(blob) > 0 {
+		cBuf = (*C.char)(unsafe.Pointer(&blob[0]))
+	}
+	C.duckdb_vector_assign_string_element_len(vec.data(), index, cBuf, IdxT(len(blob)))
 }
 
 func UnsafeVectorAssignStringElementLen(vec Vector, index IdxT, blob []byte) {
-	cBytes := (*C.char)(C.CBytes(blob))
-	defer Free(unsafe.Pointer(cBytes))
-	C.duckdb_unsafe_vector_assign_string_element_len(vec.data(), index, cBytes, IdxT(len(blob)))
+	var cBuf *C.char
+	if len(blob) > 0 {
+		cBuf = (*C.char)(unsafe.Pointer(&blob[0]))
+	}
+	C.duckdb_unsafe_vector_assign_string_element_len(vec.data(), index, cBuf, IdxT(len(blob)))
 }
 
 func ListVectorGetChild(vec Vector) Vector {
@@ -3546,55 +3581,56 @@ func AppenderCreate(conn Connection, schema string, table string, outAppender *A
 // AppenderCreateExt wraps duckdb_appender_create_ext.
 // outAppender must be destroyed with AppenderDestroy.
 func AppenderCreateExt(conn Connection, catalog string, schema string, table string, outAppender *Appender) State {
-	cCatalog := C.CString(catalog)
-	defer Free(unsafe.Pointer(cCatalog))
-	cSchema := C.CString(schema)
-	defer Free(unsafe.Pointer(cSchema))
-	cTable := C.CString(table)
-	defer Free(unsafe.Pointer(cTable))
-
-	var appender C.duckdb_appender
-	state := C.duckdb_appender_create_ext(conn.data(), cCatalog, cSchema, cTable, &appender)
-	outAppender.Ptr = unsafe.Pointer(appender)
-	if debugMode {
-		incrAllocCount("appender")
-	}
-	return state
+	return withNULString(catalog, func(cCatalog *C.char) State {
+		return withNULString(schema, func(cSchema *C.char) State {
+			return withNULString(table, func(cTable *C.char) State {
+				var appender C.duckdb_appender
+				state := C.duckdb_appender_create_ext(conn.data(), cCatalog, cSchema, cTable, &appender)
+				outAppender.Ptr = unsafe.Pointer(appender)
+				if debugMode {
+					incrAllocCount("appender")
+				}
+				return state
+			})
+		})
+	})
 }
 
 // AppenderCreateQuery wraps duckdb_appender_create_query.
 // outAppender must be destroyed with AppenderDestroy.
 func AppenderCreateQuery(conn Connection, query string, types []LogicalType, tableName string, columnNames []string, outAppender *Appender) State {
-	cQuery := C.CString(query)
-	defer Free(unsafe.Pointer(cQuery))
-
 	typesPtr := allocLogicalTypes(types)
 	defer Free(unsafe.Pointer(typesPtr))
 
-	// The table name is optional.
-	cTableName := unsafe.Pointer(nil)
-	if tableName != "" {
-		cTableName = unsafe.Pointer(C.CString(tableName))
-	}
-	defer Free(cTableName)
-
 	// Column names are optional.
-	namesPtr := unsafe.Pointer(nil)
-	countNames := IdxT(len(columnNames))
-	if countNames > 0 {
-		namesPtr = unsafe.Pointer(allocNames(columnNames))
+	var namesAlloc nameListAlloc
+	if len(columnNames) > 0 {
+		namesAlloc = allocNames(columnNames)
 	}
-	defer Free(namesPtr)
-	defer C.duckdb_go_bindings_free_names((**C.char)(namesPtr), countNames)
+	defer freeNameList(namesAlloc)
 
 	columnCount := IdxT(len(types))
-	var appender C.duckdb_appender
-	state := C.duckdb_appender_create_query(conn.data(), cQuery, columnCount, typesPtr, (*C.char)(cTableName), (**C.char)(namesPtr), &appender)
-	outAppender.Ptr = unsafe.Pointer(appender)
-	if debugMode {
-		incrAllocCount("appender")
-	}
-	return state
+
+	return withNULString(query, func(cQuery *C.char) State {
+		if tableName != "" {
+			return withNULString(tableName, func(cTable *C.char) State {
+				var appender C.duckdb_appender
+				state := C.duckdb_appender_create_query(conn.data(), cQuery, columnCount, typesPtr, cTable, namesAlloc.arr, &appender)
+				outAppender.Ptr = unsafe.Pointer(appender)
+				if debugMode {
+					incrAllocCount("appender")
+				}
+				return state
+			})
+		}
+		var appender C.duckdb_appender
+		state := C.duckdb_appender_create_query(conn.data(), cQuery, columnCount, typesPtr, (*C.char)(nil), namesAlloc.arr, &appender)
+		outAppender.Ptr = unsafe.Pointer(appender)
+		if debugMode {
+			incrAllocCount("appender")
+		}
+		return state
+	})
 }
 
 func AppenderColumnCount(appender Appender) IdxT {
@@ -3995,17 +4031,63 @@ func allocValues(values []Value) *C.duckdb_value {
 	return valuesPtr
 }
 
-// The return value must be freed with Free.
-// The names must also be freed.
-func allocNames(names []string) **C.char {
-	count := len(names)
-	namesPtr := (**C.char)(C.calloc(C.size_t(count), charSize))
+// nameListAlloc is produced by allocNames: arr[i] point into NUL-padded blob backing.
+type nameListAlloc struct {
+	arr  **C.char
+	blob *C.char
+}
 
-	for i, name := range names {
-		C.duckdb_go_bindings_set_name(namesPtr, C.CString(name), IdxT(i))
+func freeNameList(a nameListAlloc) {
+	if a.blob != nil {
+		Free(unsafe.Pointer(a.blob))
+	}
+	if a.arr != nil {
+		Free(unsafe.Pointer(a.arr))
+	}
+}
+
+// The return values must be released with freeNameList.
+func allocNames(names []string) nameListAlloc {
+	n := len(names)
+	if n == 0 {
+		return nameListAlloc{}
 	}
 
-	return namesPtr
+	var blobSize C.size_t
+	for _, s := range names {
+		blobSize += C.size_t(len(s)) + 1
+	}
+
+	arrMem := unsafe.Pointer(C.duckdb_malloc(C.size_t(n) * charSize))
+	if arrMem == nil {
+		panic("duckdb-go-bindings: duckdb_malloc name array returned nil")
+	}
+	arr := (**C.char)(arrMem)
+
+	blobMem := unsafe.Pointer(C.duckdb_malloc(blobSize))
+	if blobMem == nil {
+		Free(arrMem)
+		panic("duckdb-go-bindings: duckdb_malloc name blob returned nil")
+	}
+	blob := (*C.char)(blobMem)
+
+	var off uintptr
+	for i := 0; i < n; i++ {
+		s := names[i]
+		L := len(s)
+		dest := unsafe.Add(unsafe.Pointer(blob), off)
+		if L > 0 {
+			C.memcpy(unsafe.Pointer(dest), unsafe.Pointer(unsafe.StringData(s)), C.size_t(L))
+		}
+		*(*byte)(unsafe.Add(dest, uintptr(L))) = 0
+
+		slot := (**C.char)(unsafe.Add(unsafe.Pointer(arr), uintptr(i)*unsafe.Sizeof(uintptr(0))))
+		*slot = (*C.char)(dest)
+
+		off += uintptr(L + 1)
+	}
+
+	return nameListAlloc{arr: arr, blob: blob}
 }
 
 // ------------------------------------------------------------------ //
