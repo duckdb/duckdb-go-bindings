@@ -244,7 +244,7 @@ func ExecutePreparedArrow(preparedStmt PreparedStatement, outArrow *Arrow) State
 }
 
 func ArrowScan(conn Connection, table string, stream ArrowStream) State {
-	cTable := C.CString(table)
-	defer Free(unsafe.Pointer(cTable))
-	return C.duckdb_arrow_scan(conn.data(), cTable, stream.data())
+	return withNULString(table, func(cTable *C.char) State {
+		return C.duckdb_arrow_scan(conn.data(), cTable, stream.data())
+	})
 }
