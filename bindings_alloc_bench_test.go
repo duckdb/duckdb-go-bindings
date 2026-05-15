@@ -42,6 +42,36 @@ func benchMustOpen(b *testing.B) (Database, Connection) {
 	return db, conn
 }
 
+func BenchmarkPrepare_ShortSQL(b *testing.B) {
+	_, conn := benchMustOpen(b)
+
+	const sql = "SELECT $1::VARCHAR"
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		var stmt PreparedStatement
+		if Prepare(conn, sql, &stmt) != StateSuccess {
+			b.Fatal(PrepareError(stmt))
+		}
+		DestroyPrepare(&stmt)
+	}
+}
+
+// BenchmarkQuery_simpleSelect calls duckdb_query in a loop; SQL text passes through withNULString (pool/copy).
+func BenchmarkQuery_simpleSelect(b *testing.B) {
+	_, conn := benchMustOpen(b)
+	const sql = `SELECT 1 AS x`
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		var res Result
+		if Query(conn, sql, &res) != StateSuccess {
+			b.Fatal("query")
+		}
+		DestroyResult(&res)
+	}
+}
+
 func BenchmarkBindVarchar_preparedHotPath(b *testing.B) {
 	_, conn := benchMustOpen(b)
 	var stmt PreparedStatement
