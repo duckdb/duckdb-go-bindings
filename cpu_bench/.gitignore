@@ -1,0 +1,8 @@
+bench_fork
+bench_upstream
+compare_bin
+bench.out
+bench.log
+# build artifacts; result.json (the committed baseline) is tracked explicitly
+*.json
+!result.json
