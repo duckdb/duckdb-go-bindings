@@ -7,6 +7,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestCreateVarcharEmpty(t *testing.T) {
+	defer VerifyAllocationCounters()
+	v := CreateVarchar("")
+	defer DestroyValue(&v)
+	require.NotNil(t, v.Ptr)
+}
+
 func TestCreateEnumType_manyPackedNames(t *testing.T) {
 	defer VerifyAllocationCounters()
 	names := make([]string, 48)
@@ -18,14 +25,18 @@ func TestCreateEnumType_manyPackedNames(t *testing.T) {
 	require.NotNil(t, enumT.Ptr)
 }
 
-func TestCreateVarcharEmpty(t *testing.T) {
-	defer VerifyAllocationCounters()
-	v := CreateVarchar("")
-	defer DestroyValue(&v)
-	require.NotNil(t, v.Ptr)
-}
-
 // benchMustOpen allocates an in-memory DB and connection for micro-benchmarks.
+// Run with: CGO_ENABLED=1 go test -bench . -benchmem -benchtime=500ms ./...
+//
+// Reading allocs/op: this column mostly reflects Go heap allocations only.
+// Pure C allocations (libc malloc/C.CString paths that do not touch the GC scan) may under-report allocs/op
+// despite visible CPU — also look at ns/op and malloc profiling (jemalloc_stats, Tracy, perf).
+//
+// Non-empty SQL/query strings use withNULString: pooled []byte + copy instead of C.CString.
+// Large stack buffers handed to cgo still escape to the Go heap (so we rely on pooling, not big stack arrays).
+//
+// CreateEnumType with many labels: allocNames uses two duckdb_malloc calls (pointer array + contiguous NUL-string blob);
+// see BenchmarkCreateEnumType_64Names.
 func benchMustOpen(b *testing.B) (Database, Connection) {
 	b.Helper()
 	var db Database
@@ -136,6 +147,27 @@ func BenchmarkCreateVarcharLength_destroy(b *testing.B) {
 	}
 }
 
+func BenchmarkValueToString_int(b *testing.B) {
+	v := CreateInt64(42)
+	defer DestroyValue(&v)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = ValueToString(v)
+	}
+}
+
+func BenchmarkValueToString_fromVarchar(b *testing.B) {
+	const s = "round-trip-text"
+	v := CreateVarchar(s)
+	defer DestroyValue(&v)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = ValueToString(v)
+	}
+}
+
 func BenchmarkValidUtf8Check_512B(b *testing.B) {
 	buf := make([]byte, 512)
 	for i := range buf {
@@ -149,7 +181,21 @@ func BenchmarkValidUtf8Check_512B(b *testing.B) {
 	}
 }
 
-// CreateEnumType with many labels: allocNames uses two duckdb_malloc calls (pointer array + contiguous NUL-string blob).
+func BenchmarkNewBigNum_32B_destroy(b *testing.B) {
+	data := make([]byte, 32)
+	for i := range data {
+		data[i] = byte(i + 1)
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		bn := NewBigNum(data, false)
+		DestroyBigNum(&bn)
+	}
+}
+
+// CreateEnumType with many labels does two duckdb_malloc calls (pointer array + string blob) via allocNames
+// instead of N separate C strings; see BenchmarkCreateEnumType_64Names.
 func BenchmarkCreateEnumType_64Names(b *testing.B) {
 	names := make([]string, 64)
 	for i := range names {

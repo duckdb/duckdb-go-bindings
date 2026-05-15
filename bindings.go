@@ -2192,7 +2192,6 @@ func CreateBlob(val []byte) Value {
 	if len(val) > 0 {
 		data = (*C.uint8_t)(unsafe.Pointer(&val[0]))
 	}
-
 	v := C.duckdb_create_blob(data, IdxT(len(val)))
 	if debugMode {
 		incrAllocCount("v")
@@ -2579,9 +2578,9 @@ func LogicalTypeGetAlias(logicalType LogicalType) string {
 }
 
 func LogicalTypeSetAlias(logicalType LogicalType, alias string) {
-	cAlias := C.CString(alias)
-	defer Free(unsafe.Pointer(cAlias))
-	C.duckdb_logical_type_set_alias(logicalType.data(), cAlias)
+	withNULStringVoid(alias, func(cAlias *C.char) {
+		C.duckdb_logical_type_set_alias(logicalType.data(), cAlias)
+	})
 }
 
 // CreateListType wraps duckdb_create_list_type.
@@ -3085,9 +3084,9 @@ func DestroyScalarFunction(f *ScalarFunction) {
 }
 
 func ScalarFunctionSetName(f ScalarFunction, name string) {
-	cName := C.CString(name)
-	defer Free(unsafe.Pointer(cName))
-	C.duckdb_scalar_function_set_name(f.data(), cName)
+	withNULStringVoid(name, func(cName *C.char) {
+		C.duckdb_scalar_function_set_name(f.data(), cName)
+	})
 }
 
 func ScalarFunctionSetVarargs(f ScalarFunction, logicalType LogicalType) {
@@ -3131,9 +3130,9 @@ func ScalarFunctionSetBindDataCopy(info BindInfo, callbackPtr unsafe.Pointer) {
 }
 
 func ScalarFunctionBindSetError(info BindInfo, err string) {
-	cErr := C.CString(err)
-	defer Free(unsafe.Pointer(cErr))
-	C.duckdb_scalar_function_bind_set_error(info.data(), cErr)
+	withNULStringVoid(err, func(cErr *C.char) {
+		C.duckdb_scalar_function_bind_set_error(info.data(), cErr)
+	})
 }
 
 func ScalarFunctionSetFunction(f ScalarFunction, callbackPtr unsafe.Pointer) {
@@ -3169,24 +3168,23 @@ func ScalarFunctionGetClientContext(info BindInfo, outCtx *ClientContext) {
 }
 
 func ScalarFunctionSetError(info FunctionInfo, err string) {
-	cErr := C.CString(err)
-	defer Free(unsafe.Pointer(cErr))
-	C.duckdb_scalar_function_set_error(info.data(), cErr)
+	withNULStringVoid(err, func(cErr *C.char) {
+		C.duckdb_scalar_function_set_error(info.data(), cErr)
+	})
 }
 
 // CreateScalarFunctionSet wraps duckdb_create_scalar_function_set.
 // The return value must be destroyed with DestroyScalarFunctionSet.
 func CreateScalarFunctionSet(name string) ScalarFunctionSet {
-	cName := C.CString(name)
-	defer Free(unsafe.Pointer(cName))
-
-	set := C.duckdb_create_scalar_function_set(cName)
-	if debugMode {
-		incrAllocCount("scalarFuncSet")
-	}
-	return ScalarFunctionSet{
-		Ptr: unsafe.Pointer(set),
-	}
+	return withNULString(name, func(cName *C.char) ScalarFunctionSet {
+		set := C.duckdb_create_scalar_function_set(cName)
+		if debugMode {
+			incrAllocCount("scalarFuncSet")
+		}
+		return ScalarFunctionSet{
+			Ptr: unsafe.Pointer(set),
+		}
+	})
 }
 
 // DestroyScalarFunctionSet wraps duckdb_destroy_scalar_function_set.
@@ -3310,9 +3308,9 @@ func DestroyTableFunction(f *TableFunction) {
 }
 
 func TableFunctionSetName(f TableFunction, name string) {
-	cName := C.CString(name)
-	defer Free(unsafe.Pointer(cName))
-	C.duckdb_table_function_set_name(f.data(), cName)
+	withNULStringVoid(name, func(cName *C.char) {
+		C.duckdb_table_function_set_name(f.data(), cName)
+	})
 }
 
 func TableFunctionAddParameter(f TableFunction, logicalType LogicalType) {
@@ -3320,9 +3318,9 @@ func TableFunctionAddParameter(f TableFunction, logicalType LogicalType) {
 }
 
 func TableFunctionAddNamedParameter(f TableFunction, name string, logicalType LogicalType) {
-	cName := C.CString(name)
-	defer Free(unsafe.Pointer(cName))
-	C.duckdb_table_function_add_named_parameter(f.data(), cName, logicalType.data())
+	withNULStringVoid(name, func(cName *C.char) {
+		C.duckdb_table_function_add_named_parameter(f.data(), cName, logicalType.data())
+	})
 }
 
 func TableFunctionSetExtraInfo(f TableFunction, extraInfoPtr unsafe.Pointer, callbackPtr unsafe.Pointer) {
@@ -3378,9 +3376,9 @@ func TableFunctionGetClientContext(info BindInfo, outCtx *ClientContext) {
 }
 
 func BindAddResultColumn(info BindInfo, name string, logicalType LogicalType) {
-	cName := C.CString(name)
-	defer Free(unsafe.Pointer(cName))
-	C.duckdb_bind_add_result_column(info.data(), cName, logicalType.data())
+	withNULStringVoid(name, func(cName *C.char) {
+		C.duckdb_bind_add_result_column(info.data(), cName, logicalType.data())
+	})
 }
 
 func BindGetParameterCount(info BindInfo) IdxT {
@@ -3402,15 +3400,15 @@ func BindGetParameter(info BindInfo, index IdxT) Value {
 // BindGetNamedParameter wraps duckdb_bind_get_named_parameter.
 // The return value must be destroyed with DestroyValue.
 func BindGetNamedParameter(info BindInfo, name string) Value {
-	cName := C.CString(name)
-	defer Free(unsafe.Pointer(cName))
-	v := C.duckdb_bind_get_named_parameter(info.data(), cName)
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return withNULString(name, func(cName *C.char) Value {
+		v := C.duckdb_bind_get_named_parameter(info.data(), cName)
+		if debugMode {
+			incrAllocCount("v")
+		}
+		return Value{
+			Ptr: unsafe.Pointer(v),
+		}
+	})
 }
 
 func BindSetBindData(info BindInfo, bindDataPtr unsafe.Pointer, callbackPtr unsafe.Pointer) {
@@ -3423,9 +3421,9 @@ func BindSetCardinality(info BindInfo, cardinality IdxT, exact bool) {
 }
 
 func BindSetError(info BindInfo, err string) {
-	cErr := C.CString(err)
-	defer Free(unsafe.Pointer(cErr))
-	C.duckdb_bind_set_error(info.data(), cErr)
+	withNULStringVoid(err, func(cErr *C.char) {
+		C.duckdb_bind_set_error(info.data(), cErr)
+	})
 }
 
 // ------------------------------------------------------------------ //
@@ -3458,9 +3456,9 @@ func InitSetMaxThreads(info InitInfo, max IdxT) {
 }
 
 func InitSetError(info InitInfo, err string) {
-	cStr := C.CString(err)
-	defer Free(unsafe.Pointer(cStr))
-	C.duckdb_init_set_error(info.data(), cStr)
+	withNULStringVoid(err, func(cStr *C.char) {
+		C.duckdb_init_set_error(info.data(), cStr)
+	})
 }
 
 // ------------------------------------------------------------------ //
@@ -3484,9 +3482,9 @@ func FunctionGetLocalInitData(info FunctionInfo) unsafe.Pointer {
 }
 
 func FunctionSetError(info FunctionInfo, err string) {
-	cErr := C.CString(err)
-	defer Free(unsafe.Pointer(cErr))
-	C.duckdb_function_set_error(info.data(), cErr)
+	withNULStringVoid(err, func(cErr *C.char) {
+		C.duckdb_function_set_error(info.data(), cErr)
+	})
 }
 
 // ------------------------------------------------------------------ //
@@ -3500,9 +3498,9 @@ func AddReplacementScan(db Database, callbackPtr unsafe.Pointer, extraData unsaf
 }
 
 func ReplacementScanSetFunctionName(info ReplacementScanInfo, name string) {
-	cName := C.CString(name)
-	defer Free(unsafe.Pointer(cName))
-	C.duckdb_replacement_scan_set_function_name(info.data(), cName)
+	withNULStringVoid(name, func(cName *C.char) {
+		C.duckdb_replacement_scan_set_function_name(info.data(), cName)
+	})
 }
 
 func ReplacementScanAddParameter(info ReplacementScanInfo, v Value) {
@@ -3510,9 +3508,9 @@ func ReplacementScanAddParameter(info ReplacementScanInfo, v Value) {
 }
 
 func ReplacementScanSetError(info ReplacementScanInfo, err string) {
-	cErr := C.CString(err)
-	defer Free(unsafe.Pointer(cErr))
-	C.duckdb_replacement_scan_set_error(info.data(), cErr)
+	withNULStringVoid(err, func(cErr *C.char) {
+		C.duckdb_replacement_scan_set_error(info.data(), cErr)
+	})
 }
 
 // ------------------------------------------------------------------ //
@@ -3529,16 +3527,16 @@ func GetProfilingInfo(conn Connection) ProfilingInfo {
 // ProfilingInfoGetValue wraps duckdb_profiling_info_get_value.
 // The return value must be destroyed with DestroyValue.
 func ProfilingInfoGetValue(info ProfilingInfo, key string) Value {
-	cKey := C.CString(key)
-	defer Free(unsafe.Pointer(cKey))
-	v := C.duckdb_profiling_info_get_value(info.data(), cKey)
+	return withNULString(key, func(cKey *C.char) Value {
+		v := C.duckdb_profiling_info_get_value(info.data(), cKey)
 
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+		if debugMode {
+			incrAllocCount("v")
+		}
+		return Value{
+			Ptr: unsafe.Pointer(v),
+		}
+	})
 }
 
 // ProfilingInfoGetMetrics wraps duckdb_profiling_info_get_metrics.
@@ -3572,66 +3570,68 @@ func ProfilingInfoGetChild(info ProfilingInfo, index IdxT) ProfilingInfo {
 // outAppender must be destroyed with AppenderDestroy.
 // Deprecated: Use AppenderCreateExt or AppenderCreateQuery.
 func AppenderCreate(conn Connection, schema string, table string, outAppender *Appender) State {
-	cSchema := C.CString(schema)
-	defer Free(unsafe.Pointer(cSchema))
-	cTable := C.CString(table)
-	defer Free(unsafe.Pointer(cTable))
-
-	var appender C.duckdb_appender
-	state := C.duckdb_appender_create(conn.data(), cSchema, cTable, &appender)
-	outAppender.Ptr = unsafe.Pointer(appender)
-	if debugMode {
-		incrAllocCount("appender")
-	}
-	return state
+	return withNULString(schema, func(cSchema *C.char) State {
+		return withNULString(table, func(cTable *C.char) State {
+			var appender C.duckdb_appender
+			state := C.duckdb_appender_create(conn.data(), cSchema, cTable, &appender)
+			outAppender.Ptr = unsafe.Pointer(appender)
+			if debugMode {
+				incrAllocCount("appender")
+			}
+			return state
+		})
+	})
 }
 
 // AppenderCreateExt wraps duckdb_appender_create_ext.
 // outAppender must be destroyed with AppenderDestroy.
 func AppenderCreateExt(conn Connection, catalog string, schema string, table string, outAppender *Appender) State {
-	cCatalog := C.CString(catalog)
-	defer Free(unsafe.Pointer(cCatalog))
-	cSchema := C.CString(schema)
-	defer Free(unsafe.Pointer(cSchema))
-	cTable := C.CString(table)
-	defer Free(unsafe.Pointer(cTable))
-
-	var appender C.duckdb_appender
-	state := C.duckdb_appender_create_ext(conn.data(), cCatalog, cSchema, cTable, &appender)
-	outAppender.Ptr = unsafe.Pointer(appender)
-	if debugMode {
-		incrAllocCount("appender")
-	}
-	return state
+	return withNULString(catalog, func(cCatalog *C.char) State {
+		return withNULString(schema, func(cSchema *C.char) State {
+			return withNULString(table, func(cTable *C.char) State {
+				var appender C.duckdb_appender
+				state := C.duckdb_appender_create_ext(conn.data(), cCatalog, cSchema, cTable, &appender)
+				outAppender.Ptr = unsafe.Pointer(appender)
+				if debugMode {
+					incrAllocCount("appender")
+				}
+				return state
+			})
+		})
+	})
 }
 
 // AppenderCreateQuery wraps duckdb_appender_create_query.
 // outAppender must be destroyed with AppenderDestroy.
 func AppenderCreateQuery(conn Connection, query string, types []LogicalType, tableName string, columnNames []string, outAppender *Appender) State {
-	cQuery := C.CString(query)
-	defer Free(unsafe.Pointer(cQuery))
-
 	typesPtr := allocLogicalTypes(types)
 	defer Free(unsafe.Pointer(typesPtr))
-
-	// The table name is optional.
-	cTableName := unsafe.Pointer(nil)
-	if tableName != "" {
-		cTableName = unsafe.Pointer(C.CString(tableName))
-	}
-	defer Free(cTableName)
 
 	namesAlloc := allocNames(columnNames)
 	defer freeNameList(namesAlloc)
 
 	columnCount := IdxT(len(types))
-	var appender C.duckdb_appender
-	state := C.duckdb_appender_create_query(conn.data(), cQuery, columnCount, typesPtr, (*C.char)(cTableName), namesAlloc.arr, &appender)
-	outAppender.Ptr = unsafe.Pointer(appender)
-	if debugMode {
-		incrAllocCount("appender")
-	}
-	return state
+
+	return withNULString(query, func(cQuery *C.char) State {
+		if tableName != "" {
+			return withNULString(tableName, func(cTable *C.char) State {
+				var appender C.duckdb_appender
+				state := C.duckdb_appender_create_query(conn.data(), cQuery, columnCount, typesPtr, cTable, namesAlloc.arr, &appender)
+				outAppender.Ptr = unsafe.Pointer(appender)
+				if debugMode {
+					incrAllocCount("appender")
+				}
+				return state
+			})
+		}
+		var appender C.duckdb_appender
+		state := C.duckdb_appender_create_query(conn.data(), cQuery, columnCount, typesPtr, (*C.char)(nil), namesAlloc.arr, &appender)
+		outAppender.Ptr = unsafe.Pointer(appender)
+		if debugMode {
+			incrAllocCount("appender")
+		}
+		return state
+	})
 }
 
 func AppenderColumnCount(appender Appender) IdxT {
@@ -3694,9 +3694,9 @@ func AppenderDestroy(appender *Appender) State {
 }
 
 func AppenderAddColumn(appender Appender, name string) State {
-	cName := C.CString(name)
-	defer Free(unsafe.Pointer(cName))
-	return C.duckdb_appender_add_column(appender.data(), cName)
+	return withNULString(name, func(cName *C.char) State {
+		return C.duckdb_appender_add_column(appender.data(), cName)
+	})
 }
 
 func AppenderClearColumns(appender Appender) State {
@@ -3747,37 +3747,35 @@ func AppendDataChunk(appender Appender, chunk DataChunk) State {
 // TableDescriptionCreate wraps duckdb_table_description_create.
 // outDesc must be destroyed with TableDescriptionDestroy.
 func TableDescriptionCreate(conn Connection, schema string, table string, outDesc *TableDescription) State {
-	cSchema := C.CString(schema)
-	defer Free(unsafe.Pointer(cSchema))
-	cTable := C.CString(table)
-	defer Free(unsafe.Pointer(cTable))
-
-	var description C.duckdb_table_description
-	state := C.duckdb_table_description_create(conn.data(), cSchema, cTable, &description)
-	outDesc.Ptr = unsafe.Pointer(description)
-	if debugMode {
-		incrAllocCount("tableDesc")
-	}
-	return state
+	return withNULString(schema, func(cSchema *C.char) State {
+		return withNULString(table, func(cTable *C.char) State {
+			var description C.duckdb_table_description
+			state := C.duckdb_table_description_create(conn.data(), cSchema, cTable, &description)
+			outDesc.Ptr = unsafe.Pointer(description)
+			if debugMode {
+				incrAllocCount("tableDesc")
+			}
+			return state
+		})
+	})
 }
 
 // TableDescriptionCreateExt wraps duckdb_table_description_create_ext.
 // outDesc must be destroyed with TableDescriptionDestroy.
 func TableDescriptionCreateExt(conn Connection, catalog string, schema string, table string, outDesc *TableDescription) State {
-	cCatalog := C.CString(catalog)
-	defer Free(unsafe.Pointer(cCatalog))
-	cSchema := C.CString(schema)
-	defer Free(unsafe.Pointer(cSchema))
-	cTable := C.CString(table)
-	defer Free(unsafe.Pointer(cTable))
-
-	var description C.duckdb_table_description
-	state := C.duckdb_table_description_create_ext(conn.data(), cCatalog, cSchema, cTable, &description)
-	outDesc.Ptr = unsafe.Pointer(description)
-	if debugMode {
-		incrAllocCount("tableDesc")
-	}
-	return state
+	return withNULString(catalog, func(cCatalog *C.char) State {
+		return withNULString(schema, func(cSchema *C.char) State {
+			return withNULString(table, func(cTable *C.char) State {
+				var description C.duckdb_table_description
+				state := C.duckdb_table_description_create_ext(conn.data(), cCatalog, cSchema, cTable, &description)
+				outDesc.Ptr = unsafe.Pointer(description)
+				if debugMode {
+					incrAllocCount("tableDesc")
+				}
+				return state
+			})
+		})
+	})
 }
 
 // TableDescriptionDestroy wraps duckdb_table_description_destroy.
@@ -3984,9 +3982,9 @@ func LogStorageSetExtraData(logStorage LogStorage, extraDataPtr unsafe.Pointer, 
 }
 
 func LogStorageSetName(logStorage LogStorage, name string) {
-	cName := C.CString(name)
-	defer Free(unsafe.Pointer(cName))
-	C.duckdb_log_storage_set_name(logStorage.data(), cName)
+	withNULStringVoid(name, func(cName *C.char) {
+		C.duckdb_log_storage_set_name(logStorage.data(), cName)
+	})
 }
 
 func RegisterLogStorage(db Database, logStorage LogStorage) State {
