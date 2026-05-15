@@ -78,9 +78,7 @@ func NewArrowSchema(options ArrowOptions, types []LogicalType, names []string) (
 	defer Free(unsafe.Pointer(cTypes))
 
 	cNames := allocNames(names)
-	defer Free(unsafe.Pointer(cNames))
-	cc := IdxT(len(names))
-	defer C.duckdb_go_bindings_free_names(cNames, cc)
+	defer freeNameList(cNames)
 
 	arr := C.calloc(1, C.sizeof_struct_ArrowSchema)
 	defer func() {
@@ -88,7 +86,7 @@ func NewArrowSchema(options ArrowOptions, types []LogicalType, names []string) (
 		C.free(arr)
 	}()
 
-	ed := C.duckdb_to_arrow_schema(options.data(), cTypes, cNames, C.idx_t(len(names)), (*C.struct_ArrowSchema)(arr))
+	ed := C.duckdb_to_arrow_schema(options.data(), cTypes, cNames.arr, C.idx_t(len(names)), (*C.struct_ArrowSchema)(arr))
 	errData := ErrorData{Ptr: unsafe.Pointer(ed)}
 	if debugMode && ed != nil {
 		incrAllocCount("errorData")

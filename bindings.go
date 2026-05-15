@@ -3,6 +3,7 @@ package duckdb_go_bindings
 /*
 #include <duckdb.h>
 #include <stdlib.h>
+#include <string.h>
 #include <duckdb_go_bindings.h>
 */
 import "C"
@@ -2587,13 +2588,12 @@ func CreateUnionType(types []LogicalType, names []string) LogicalType {
 	typesPtr := allocLogicalTypes(types)
 	defer Free(unsafe.Pointer(typesPtr))
 
-	namesPtr := allocNames(names)
-	defer Free(unsafe.Pointer(namesPtr))
+	namesAlloc := allocNames(names)
+	defer freeNameList(namesAlloc)
 	count := IdxT(len(types))
-	defer C.duckdb_go_bindings_free_names(namesPtr, count)
 
-	// Create the STRUCT type.
-	logicalType := C.duckdb_create_union_type(typesPtr, namesPtr, count)
+	// Create the UNION type.
+	logicalType := C.duckdb_create_union_type(typesPtr, namesAlloc.arr, count)
 
 	if debugMode {
 		incrAllocCount("logicalType")
@@ -2609,13 +2609,12 @@ func CreateStructType(types []LogicalType, names []string) LogicalType {
 	typesPtr := allocLogicalTypes(types)
 	defer Free(unsafe.Pointer(typesPtr))
 
-	namesPtr := allocNames(names)
-	defer Free(unsafe.Pointer(namesPtr))
+	namesAlloc := allocNames(names)
+	defer freeNameList(namesAlloc)
 	count := IdxT(len(types))
-	defer C.duckdb_go_bindings_free_names(namesPtr, count)
 
 	// Create the STRUCT type.
-	logicalType := C.duckdb_create_struct_type(typesPtr, namesPtr, count)
+	logicalType := C.duckdb_create_struct_type(typesPtr, namesAlloc.arr, count)
 
 	if debugMode {
 		incrAllocCount("logicalType")
@@ -2628,13 +2627,12 @@ func CreateStructType(types []LogicalType, names []string) LogicalType {
 // CreateEnumType wraps duckdb_create_enum_type.
 // The return value must be destroyed with DestroyLogicalType.
 func CreateEnumType(names []string) LogicalType {
-	namesPtr := allocNames(names)
-	defer Free(unsafe.Pointer(namesPtr))
+	namesAlloc := allocNames(names)
+	defer freeNameList(namesAlloc)
 	count := IdxT(len(names))
-	defer C.duckdb_go_bindings_free_names(namesPtr, count)
 
 	// Create the ENUM type.
-	logicalType := C.duckdb_create_enum_type(namesPtr, count)
+	logicalType := C.duckdb_create_enum_type(namesAlloc.arr, count)
 
 	if debugMode {
 		incrAllocCount("logicalType")
@@ -3579,17 +3577,15 @@ func AppenderCreateQuery(conn Connection, query string, types []LogicalType, tab
 	defer Free(cTableName)
 
 	// Column names are optional.
-	namesPtr := unsafe.Pointer(nil)
-	countNames := IdxT(len(columnNames))
-	if countNames > 0 {
-		namesPtr = unsafe.Pointer(allocNames(columnNames))
+	var namesAlloc nameListAlloc
+	if len(columnNames) > 0 {
+		namesAlloc = allocNames(columnNames)
 	}
-	defer Free(namesPtr)
-	defer C.duckdb_go_bindings_free_names((**C.char)(namesPtr), countNames)
+	defer freeNameList(namesAlloc)
 
 	columnCount := IdxT(len(types))
 	var appender C.duckdb_appender
-	state := C.duckdb_appender_create_query(conn.data(), cQuery, columnCount, typesPtr, (*C.char)(cTableName), (**C.char)(namesPtr), &appender)
+	state := C.duckdb_appender_create_query(conn.data(), cQuery, columnCount, typesPtr, (*C.char)(cTableName), namesAlloc.arr, &appender)
 	outAppender.Ptr = unsafe.Pointer(appender)
 	if debugMode {
 		incrAllocCount("appender")
@@ -3995,17 +3991,63 @@ func allocValues(values []Value) *C.duckdb_value {
 	return valuesPtr
 }
 
-// The return value must be freed with Free.
-// The names must also be freed.
-func allocNames(names []string) **C.char {
-	count := len(names)
-	namesPtr := (**C.char)(C.calloc(C.size_t(count), charSize))
+// nameListAlloc is produced by allocNames: arr[i] point into NUL-padded blob backing.
+type nameListAlloc struct {
+	arr  **C.char
+	blob *C.char
+}
 
-	for i, name := range names {
-		C.duckdb_go_bindings_set_name(namesPtr, C.CString(name), IdxT(i))
+func freeNameList(a nameListAlloc) {
+	if a.blob != nil {
+		Free(unsafe.Pointer(a.blob))
+	}
+	if a.arr != nil {
+		Free(unsafe.Pointer(a.arr))
+	}
+}
+
+// The return values must be released with freeNameList.
+func allocNames(names []string) nameListAlloc {
+	n := len(names)
+	if n == 0 {
+		return nameListAlloc{}
 	}
 
-	return namesPtr
+	var blobSize C.size_t
+	for _, s := range names {
+		blobSize += C.size_t(len(s)) + 1
+	}
+
+	arrMem := unsafe.Pointer(C.duckdb_malloc(C.size_t(n) * charSize))
+	if arrMem == nil {
+		panic("duckdb-go-bindings: duckdb_malloc name array returned nil")
+	}
+	arr := (**C.char)(arrMem)
+
+	blobMem := unsafe.Pointer(C.duckdb_malloc(blobSize))
+	if blobMem == nil {
+		Free(arrMem)
+		panic("duckdb-go-bindings: duckdb_malloc name blob returned nil")
+	}
+	blob := (*C.char)(blobMem)
+
+	var off uintptr
+	for i := 0; i < n; i++ {
+		s := names[i]
+		L := len(s)
+		dest := unsafe.Add(unsafe.Pointer(blob), off)
+		if L > 0 {
+			C.memcpy(unsafe.Pointer(dest), unsafe.Pointer(unsafe.StringData(s)), C.size_t(L))
+		}
+		*(*byte)(unsafe.Add(dest, uintptr(L))) = 0
+
+		slot := (**C.char)(unsafe.Add(unsafe.Pointer(arr), uintptr(i)*unsafe.Sizeof(uintptr(0))))
+		*slot = (*C.char)(dest)
+
+		off += uintptr(L + 1)
+	}
+
+	return nameListAlloc{arr: arr, blob: blob}
 }
 
 // ------------------------------------------------------------------ //
