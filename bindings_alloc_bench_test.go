@@ -18,23 +18,6 @@ func TestCreateEnumType_manyPackedNames(t *testing.T) {
 	require.NotNil(t, enumT.Ptr)
 }
 
-// benchMustOpen allocates an in-memory DB and connection for micro-benchmarks.
-func benchMustOpen(b *testing.B) (Database, Connection) {
-	b.Helper()
-	var db Database
-	if Open(":memory:", &db) != StateSuccess {
-		b.Fatal("duckdb_open :memory:")
-	}
-	b.Cleanup(func() { Close(&db) })
-	var conn Connection
-	if Connect(db, &conn) != StateSuccess {
-		Close(&db)
-		b.Fatal("duckdb_connect")
-	}
-	b.Cleanup(func() { Disconnect(&conn) })
-	return db, conn
-}
-
 // CreateEnumType with many labels: allocNames uses two duckdb_malloc calls (pointer array + contiguous NUL-string blob).
 func BenchmarkCreateEnumType_64Names(b *testing.B) {
 	names := make([]string, 64)

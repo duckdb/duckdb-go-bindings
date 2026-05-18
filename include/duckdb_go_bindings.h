@@ -8,10 +8,6 @@ static void duckdb_go_bindings_set_value(duckdb_value *values_ptr, duckdb_value 
 	values_ptr[index] = value;
 }
 
-static void duckdb_go_bindings_set_name(char **names, char *name, idx_t index) {
-	names[index] = name;
-}
-
 static bool duckdb_go_bindings_is_valid(uint64_t *mask_ptr, idx_t index) {
 	idx_t entry_idx = index / 64;
 	idx_t idx_in_entry = index % 64;

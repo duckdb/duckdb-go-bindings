@@ -3576,11 +3576,7 @@ func AppenderCreateQuery(conn Connection, query string, types []LogicalType, tab
 	}
 	defer Free(cTableName)
 
-	// Column names are optional.
-	var namesAlloc nameListAlloc
-	if len(columnNames) > 0 {
-		namesAlloc = allocNames(columnNames)
-	}
+	namesAlloc := allocNames(columnNames)
 	defer freeNameList(namesAlloc)
 
 	columnCount := IdxT(len(types))
@@ -4034,17 +4030,17 @@ func allocNames(names []string) nameListAlloc {
 	var off uintptr
 	for i := 0; i < n; i++ {
 		s := names[i]
-		L := len(s)
+		slen := len(s)
 		dest := unsafe.Add(unsafe.Pointer(blob), off)
-		if L > 0 {
-			C.memcpy(unsafe.Pointer(dest), unsafe.Pointer(unsafe.StringData(s)), C.size_t(L))
+		if slen > 0 {
+			C.memcpy(unsafe.Pointer(dest), unsafe.Pointer(unsafe.StringData(s)), C.size_t(slen))
 		}
-		*(*byte)(unsafe.Add(dest, uintptr(L))) = 0
+		*(*byte)(unsafe.Add(dest, uintptr(slen))) = 0
 
-		slot := (**C.char)(unsafe.Add(unsafe.Pointer(arr), uintptr(i)*unsafe.Sizeof(uintptr(0))))
+		slot := (**C.char)(unsafe.Add(unsafe.Pointer(arr), uintptr(i)*uintptr(charSize)))
 		*slot = (*C.char)(dest)
 
-		off += uintptr(L + 1)
+		off += uintptr(slen + 1)
 	}
 
 	return nameListAlloc{arr: arr, blob: blob}
