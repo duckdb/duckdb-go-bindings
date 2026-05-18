@@ -17,14 +17,14 @@ func TestVectorAssignUTF8Bytes_roundTripChunk(t *testing.T) {
 
 	vec := DataChunkGetVector(chunk, 0)
 	payload := []byte(`{"proto_type":1,"version":3}`)
-	VectorAssignUTF8Bytes(vec, 0, payload, false)
+	VectorAssignByteElement(vec, 0, payload)
 	require.Equal(t, IdxT(0), DataChunkGetSize(chunk))
 
 	DataChunkSetSize(chunk, 1)
 	require.Equal(t, IdxT(1), DataChunkGetSize(chunk))
 }
 
-func TestVectorAssignStringElementLen_zeroGoAllocPerAssign(t *testing.T) {
+func TestVectorAssignByteElement_zeroGoAllocPerAssign(t *testing.T) {
 	varcharT := CreateLogicalType(TypeVarchar)
 	defer DestroyLogicalType(&varcharT)
 
@@ -37,15 +37,27 @@ func TestVectorAssignStringElementLen_zeroGoAllocPerAssign(t *testing.T) {
 	const iterations = 512
 	allocs := testing.AllocsPerRun(5, func() {
 		for i := 0; i < iterations; i++ {
-			VectorAssignStringElementLen(vec, IdxT(i)%VectorSize(), b)
+			VectorAssignByteElement(vec, IdxT(i)%VectorSize(), b)
 		}
 	})
 	if allocs > 0 {
-		t.Fatalf("VectorAssignStringElementLen: want 0 Go allocs per %d assigns, got %v", iterations, allocs)
+		t.Fatalf("VectorAssignByteElement: want 0 Go allocs per %d assigns, got %v", iterations, allocs)
 	}
 }
 
-func BenchmarkVectorAssignUTF8Bytes_unsafe(b *testing.B) {
+func TestVectorAssignStringElementLen_legacyCopyPath(t *testing.T) {
+	varcharT := CreateLogicalType(TypeVarchar)
+	defer DestroyLogicalType(&varcharT)
+
+	chunk := CreateDataChunk([]LogicalType{varcharT})
+	defer DestroyDataChunk(&chunk)
+
+	vec := DataChunkGetVector(chunk, 0)
+	// Legacy API: copies via C.CBytes (alloc may not appear in testing.AllocsPerRun).
+	VectorAssignStringElementLen(vec, 0, []byte("legacy-safe-copy"))
+}
+
+func BenchmarkVectorAssignByteElement(b *testing.B) {
 	varcharT := CreateLogicalType(TypeVarchar)
 	defer DestroyLogicalType(&varcharT)
 
@@ -58,6 +70,6 @@ func BenchmarkVectorAssignUTF8Bytes_unsafe(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		VectorAssignUTF8Bytes(vec, IdxT(i)%VectorSize(), payload, false)
+		VectorAssignByteElement(vec, IdxT(i)%VectorSize(), payload)
 	}
 }
