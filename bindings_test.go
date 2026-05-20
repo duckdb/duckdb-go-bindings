@@ -92,3 +92,12 @@ func TestGeometryTypeGetCRS(t *testing.T) {
 	require.Equal(t, TypeGeometry, GetTypeId(logicalType))
 	require.Contains(t, GeometryTypeGetCRS(logicalType), "CRS84")
 }
+
+func TestVariantLogicalType(t *testing.T) {
+	defer VerifyAllocationCounters()
+
+	variantT := CreateLogicalType(TypeVariant)
+	defer DestroyLogicalType(&variantT)
+
+	require.Equal(t, TypeVariant, GetTypeId(variantT))
+}

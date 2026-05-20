@@ -64,6 +64,7 @@ const (
 	TypeIntegerLiteral Type = C.DUCKDB_TYPE_INTEGER_LITERAL
 	TypeTimeNS         Type = C.DUCKDB_TYPE_TIME_NS
 	TypeGeometry       Type = C.DUCKDB_TYPE_GEOMETRY
+	TypeVariant        Type = C.DUCKDB_TYPE_VARIANT
 )
 
 // State wraps duckdb_state.
