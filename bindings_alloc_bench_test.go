@@ -29,16 +29,20 @@ func TestCreateVarcharEmpty(t *testing.T) {
 func benchMustOpen(b *testing.B) (Database, Connection) {
 	b.Helper()
 	var db Database
-	if Open(":memory:", &db) != StateSuccess {
-		b.Fatal("duckdb_open :memory:")
+	var config Config
+	var errMsg string
+	if OpenExt(":memory:", &db, config, &errMsg) != StateSuccess {
+		b.Fatal("failed to open in-memory DB")
 	}
 	b.Cleanup(func() { Close(&db) })
+
 	var conn Connection
 	if Connect(db, &conn) != StateSuccess {
 		Close(&db)
-		b.Fatal("duckdb_connect")
+		b.Fatal("failed to open connection")
 	}
 	b.Cleanup(func() { Disconnect(&conn) })
+
 	return db, conn
 }
 
@@ -83,12 +87,12 @@ func BenchmarkBindVarchar_preparedHotPath(b *testing.B) {
 	requirePrepare()
 	b.Cleanup(func() { DestroyPrepare(&stmt) })
 
-	s := "ingest-tag-value-pair-short"
+	const s = "ingest-tag-value-pair-short"
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if BindVarchar(stmt, 1, s) != StateSuccess {
-			b.Fatal("bind varchar")
+			b.Fatal("failed to bind VARCHAR")
 		}
 		ClearBindings(stmt)
 	}
@@ -98,7 +102,7 @@ func BenchmarkBindBlob_preparedHotPath(b *testing.B) {
 	_, conn := benchMustOpen(b)
 	var stmt PreparedStatement
 	if Prepare(conn, "SELECT $1", &stmt) != StateSuccess {
-		b.Fatal("prepare select $1 blob")
+		b.Fatal(PrepareError(stmt))
 	}
 	b.Cleanup(func() { DestroyPrepare(&stmt) })
 
@@ -110,7 +114,7 @@ func BenchmarkBindBlob_preparedHotPath(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if BindBlob(stmt, 1, blob) != StateSuccess {
-			b.Fatal("bind blob")
+			b.Fatal("failed to bind BLOB")
 		}
 		ClearBindings(stmt)
 	}

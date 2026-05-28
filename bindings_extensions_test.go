@@ -2,7 +2,7 @@ package duckdb_go_bindings
 
 import (
 	"os"
-	"strings"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -11,8 +11,7 @@ import (
 func getTestDir(t *testing.T) string {
 	path, err := os.Getwd()
 	require.NoError(t, err)
-	lastIndex := strings.LastIndex(path, "duckdb-go-bindings")
-	return path[:lastIndex] + "duckdb-go-bindings/test/"
+	return filepath.Join(path, "test") + "/"
 }
 
 // TestOpenSQLiteDB ensures that extension auto install + load works,
