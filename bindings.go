@@ -64,6 +64,7 @@ const (
 	TypeIntegerLiteral Type = C.DUCKDB_TYPE_INTEGER_LITERAL
 	TypeTimeNS         Type = C.DUCKDB_TYPE_TIME_NS
 	TypeGeometry       Type = C.DUCKDB_TYPE_GEOMETRY
+	TypeVariant        Type = C.DUCKDB_TYPE_VARIANT
 )
 
 // State wraps duckdb_state.
@@ -1392,11 +1393,11 @@ func StringTData(strT *StringT) string {
 }
 
 func ValidUtf8Check(blob []byte) ErrorData {
-	var cBuf *C.char
+	var blobPtr *C.char
 	if len(blob) > 0 {
-		cBuf = (*C.char)(unsafe.Pointer(&blob[0]))
+		blobPtr = (*C.char)(unsafe.Pointer(&blob[0]))
 	}
-	errorData := C.duckdb_valid_utf8_check(cBuf, IdxT(len(blob)))
+	errorData := C.duckdb_valid_utf8_check(blobPtr, IdxT(len(blob)))
 	if debugMode {
 		incrAllocCount("errorData")
 	}
@@ -2192,6 +2193,7 @@ func CreateBlob(val []byte) Value {
 	if len(val) > 0 {
 		data = (*C.uint8_t)(unsafe.Pointer(&val[0]))
 	}
+
 	v := C.duckdb_create_blob(data, IdxT(len(val)))
 	if debugMode {
 		incrAllocCount("v")
@@ -2966,19 +2968,19 @@ func VectorAssignStringElement(vec Vector, index IdxT, str string) {
 }
 
 func VectorAssignStringElementLen(vec Vector, index IdxT, blob []byte) {
-	var cBuf *C.char
+	var blobPtr *C.char
 	if len(blob) > 0 {
-		cBuf = (*C.char)(unsafe.Pointer(&blob[0]))
+		blobPtr = (*C.char)(unsafe.Pointer(&blob[0]))
 	}
-	C.duckdb_vector_assign_string_element_len(vec.data(), index, cBuf, IdxT(len(blob)))
+	C.duckdb_vector_assign_string_element_len(vec.data(), index, blobPtr, IdxT(len(blob)))
 }
 
 func UnsafeVectorAssignStringElementLen(vec Vector, index IdxT, blob []byte) {
-	var cBuf *C.char
+	var blobPtr *C.char
 	if len(blob) > 0 {
-		cBuf = (*C.char)(unsafe.Pointer(&blob[0]))
+		blobPtr = (*C.char)(unsafe.Pointer(&blob[0]))
 	}
-	C.duckdb_unsafe_vector_assign_string_element_len(vec.data(), index, cBuf, IdxT(len(blob)))
+	C.duckdb_unsafe_vector_assign_string_element_len(vec.data(), index, blobPtr, IdxT(len(blob)))
 }
 
 func ListVectorGetChild(vec Vector) Vector {
