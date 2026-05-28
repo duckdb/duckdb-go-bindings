@@ -1346,18 +1346,17 @@ func StringTLength(strT StringT) uint32 {
 }
 
 func StringTData(strT *StringT) string {
-	// duckdb_string_t_length takes duckdb_string_t by value; duckdb_string_t_data takes a pointer.
-	length := C.int(C.duckdb_string_t_length(*strT))
+	length := C.int(StringTLength(*strT))
 	ptr := unsafe.Pointer(C.duckdb_string_t_data(strT))
 	return string(C.GoBytes(ptr, length))
 }
 
 func ValidUtf8Check(blob []byte) ErrorData {
-	var cBuf *C.char
+	var blobPtr *C.char
 	if len(blob) > 0 {
-		cBuf = (*C.char)(unsafe.Pointer(&blob[0]))
+		blobPtr = (*C.char)(unsafe.Pointer(&blob[0]))
 	}
-	errorData := C.duckdb_valid_utf8_check(cBuf, IdxT(len(blob)))
+	errorData := C.duckdb_valid_utf8_check(blobPtr, IdxT(len(blob)))
 	if debugMode {
 		incrAllocCount("errorData")
 	}
@@ -2929,32 +2928,20 @@ func VectorAssignStringElement(vec Vector, index IdxT, str string) {
 	C.duckdb_vector_assign_string_element_len(vec.data(), index, cStr, n)
 }
 
-// VectorAssignStringElementLen copies blob into the vector (C.CBytes). Safe when the
-// caller reuses or mutates the Go slice after the call.
 func VectorAssignStringElementLen(vec Vector, index IdxT, blob []byte) {
-	cBytes := (*C.char)(C.CBytes(blob))
-	defer Free(unsafe.Pointer(cBytes))
-	C.duckdb_vector_assign_string_element_len(vec.data(), index, cBytes, IdxT(len(blob)))
-}
-
-// VectorAssignByteElement assigns UTF-8 bytes without a Go-side copy. The slice must
-// stay valid until DuckDB has copied the value into vector storage.
-func VectorAssignByteElement(vec Vector, index IdxT, blob []byte) {
-	var cBuf *C.char
+	var blobPtr *C.char
 	if len(blob) > 0 {
-		cBuf = (*C.char)(unsafe.Pointer(&blob[0]))
+		blobPtr = (*C.char)(unsafe.Pointer(&blob[0]))
 	}
-	C.duckdb_vector_assign_string_element_len(vec.data(), index, cBuf, IdxT(len(blob)))
+	C.duckdb_vector_assign_string_element_len(vec.data(), index, blobPtr, IdxT(len(blob)))
 }
 
-// UnsafeVectorAssignStringElementLen assigns bytes without UTF-8 validation and without
-// a Go-side copy. The slice must stay valid until DuckDB has copied the value.
 func UnsafeVectorAssignStringElementLen(vec Vector, index IdxT, blob []byte) {
-	var cBuf *C.char
+	var blobPtr *C.char
 	if len(blob) > 0 {
-		cBuf = (*C.char)(unsafe.Pointer(&blob[0]))
+		blobPtr = (*C.char)(unsafe.Pointer(&blob[0]))
 	}
-	C.duckdb_unsafe_vector_assign_string_element_len(vec.data(), index, cBuf, IdxT(len(blob)))
+	C.duckdb_unsafe_vector_assign_string_element_len(vec.data(), index, blobPtr, IdxT(len(blob)))
 }
 
 func ListVectorGetChild(vec Vector) Vector {
