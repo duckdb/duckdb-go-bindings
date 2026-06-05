@@ -3,11 +3,11 @@ module github.com/duckdb/duckdb-go-bindings
 go 1.24
 
 require (
-	github.com/duckdb/duckdb-go-bindings/lib/darwin-amd64 v0.20000.0-1.preview
-	github.com/duckdb/duckdb-go-bindings/lib/darwin-arm64 v0.20000.0-1.preview
-	github.com/duckdb/duckdb-go-bindings/lib/linux-amd64 v0.20000.0-1.preview
-	github.com/duckdb/duckdb-go-bindings/lib/linux-arm64 v0.20000.0-1.preview
-	github.com/duckdb/duckdb-go-bindings/lib/windows-amd64 v0.20000.0-1.preview
+	github.com/duckdb/duckdb-go-bindings/lib/darwin-amd64 v0.20000.0-2.preview
+	github.com/duckdb/duckdb-go-bindings/lib/darwin-arm64 v0.20000.0-2.preview
+	github.com/duckdb/duckdb-go-bindings/lib/linux-amd64 v0.20000.0-2.preview
+	github.com/duckdb/duckdb-go-bindings/lib/linux-arm64 v0.20000.0-2.preview
+	github.com/duckdb/duckdb-go-bindings/lib/windows-amd64 v0.20000.0-2.preview
 )
 
 require (
