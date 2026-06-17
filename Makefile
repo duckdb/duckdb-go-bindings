@@ -1,4 +1,4 @@
-DUCKDB_VERSION=v1.4.4
+DUCKDB_VERSION=v1.4.5
 
 fetch.static.libs:
 	cd lib/${PLATFORM} && \

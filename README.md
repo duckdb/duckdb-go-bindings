@@ -29,7 +29,8 @@ Starting with v0.3.0, the module includes pre-built static libraries for all pla
 
 | duckdb version | module version |
 | -------------- | -------------- |
-| v1.4.4         | v0.3.3         |
+| v1.4.5         | v0.3.5         |
+| v1.4.4         | v0.3.4         |
 | v1.4.3         | v0.3.0         |
 
 ### Legacy per-platform submodules (v0.1.x)
