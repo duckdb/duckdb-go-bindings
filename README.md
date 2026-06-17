@@ -29,7 +29,8 @@ Starting with v0.3.0, the module includes pre-built static libraries for all pla
 
 | duckdb version | module version |
 | -------------- | -------------- |
-| v1.4.4         | v0.3.3         |
+| v1.4.5         | v0.3.5         |
+| v1.4.4         | v0.3.4         |
 | v1.4.3         | v0.3.0         |
 
 ### Legacy per-platform submodules (v0.1.x)
@@ -49,19 +50,6 @@ Older versions require platform-specific imports (e.g., `github.com/duckdb/duckd
 | v1.2.1         | v0.1.13 | v0.1.8  | v0.1.8  | v0.1.8  |
 | v1.2.0         | v0.1.10 | v0.1.5  | v0.1.5  | v0.1.5  |
 
-## Known Issues
-
-### Malformed default extension directory on Windows (DuckDB v1.5.0 only)
-
-DuckDB v1.5.0 has a [regression](https://github.com/duckdb/duckdb/pull/21260) where the default extension directory is malformed on Windows. 
-This causes extension directory creation to fail and **has been fixed in `v1.5.1`.**
-To work around this, set `extension_directory` explicitly in your DuckDB configuration:
-
-```go
-config := duckdb.CreateConfig()
-duckdb.SetConfig(config, "extension_directory", `C:\path\to\ext\dir`)
-```
-
 ## Local Development
 
 To develop locally, copy the workspace template file:
@@ -73,6 +61,8 @@ cp go.work.dev go.work
 This sets up Go workspaces to use the local lib/\* submodules instead of fetching from the module proxy.
 
 ## Releasing a new DuckDB version
+
+Prepare normal releases from `main`. For LTS releases that stay on DuckDB 1.4 Andium, use the `v1.4-andium` branch.
 
 1. Create a new branch and update the `DUCKDB_VERSION` in the `Makefile`.
 2. Invoke the `Fetch and Push Libs` workflow on the new branch (it commits fetched libs to the branch; it does not tag).
