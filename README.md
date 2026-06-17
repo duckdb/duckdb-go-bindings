@@ -62,6 +62,8 @@ This sets up Go workspaces to use the local lib/\* submodules instead of fetchin
 
 ## Releasing a new DuckDB version
 
+Prepare normal releases from `main`. For LTS releases that stay on DuckDB 1.4 Andium, use the `v1.4-andium` branch.
+
 1. Create a new branch and update the `DUCKDB_VERSION` in the `Makefile`.
 2. Invoke the `Fetch and Push Libs` workflow on the new branch (it commits fetched libs to the branch; it does not tag).
 3. If the header (`duckdb.h`) has changes, add all changes (new types, functions, etc.) to the bindings.
