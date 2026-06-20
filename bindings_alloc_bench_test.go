@@ -7,6 +7,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestCreateVarcharEmpty(t *testing.T) {
+	defer VerifyAllocationCounters()
+	v := CreateVarchar("")
+	defer DestroyValue(&v)
+	require.NotNil(t, v.Ptr)
+}
+
 func TestCreateEnumType_manyPackedNames(t *testing.T) {
 	defer VerifyAllocationCounters()
 	names := make([]string, 48)
@@ -16,13 +23,6 @@ func TestCreateEnumType_manyPackedNames(t *testing.T) {
 	enumT := CreateEnumType(names)
 	defer DestroyLogicalType(&enumT)
 	require.NotNil(t, enumT.Ptr)
-}
-
-func TestCreateVarcharEmpty(t *testing.T) {
-	defer VerifyAllocationCounters()
-	v := CreateVarchar("")
-	defer DestroyValue(&v)
-	require.NotNil(t, v.Ptr)
 }
 
 // benchMustOpen allocates an in-memory DB and connection for micro-benchmarks.
@@ -45,6 +45,36 @@ func benchMustOpen(b *testing.B) (Database, Connection) {
 	b.Cleanup(func() { Disconnect(&conn) })
 
 	return db, conn
+}
+
+func BenchmarkPrepare_ShortSQL(b *testing.B) {
+	_, conn := benchMustOpen(b)
+
+	const sql = "SELECT $1::VARCHAR"
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		var stmt PreparedStatement
+		if Prepare(conn, sql, &stmt) != StateSuccess {
+			b.Fatal(PrepareError(stmt))
+		}
+		DestroyPrepare(&stmt)
+	}
+}
+
+// BenchmarkQuery_simpleSelect calls duckdb_query in a loop; SQL text passes through withNULString (pool/copy).
+func BenchmarkQuery_simpleSelect(b *testing.B) {
+	_, conn := benchMustOpen(b)
+	const sql = `SELECT 1 AS x`
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		var res Result
+		if Query(conn, sql, &res) != StateSuccess {
+			b.Fatal("query")
+		}
+		DestroyResult(&res)
+	}
 }
 
 func BenchmarkBindVarchar_preparedHotPath(b *testing.B) {
@@ -111,6 +141,27 @@ func BenchmarkCreateVarcharLength_destroy(b *testing.B) {
 	}
 }
 
+func BenchmarkValueToString_int(b *testing.B) {
+	v := CreateInt64(42)
+	defer DestroyValue(&v)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = ValueToString(v)
+	}
+}
+
+func BenchmarkValueToString_fromVarchar(b *testing.B) {
+	const s = "round-trip-text"
+	v := CreateVarchar(s)
+	defer DestroyValue(&v)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = ValueToString(v)
+	}
+}
+
 func BenchmarkValidUtf8Check_512B(b *testing.B) {
 	buf := make([]byte, 512)
 	for i := range buf {
@@ -124,7 +175,21 @@ func BenchmarkValidUtf8Check_512B(b *testing.B) {
 	}
 }
 
-// CreateEnumType with many labels: allocNames uses two duckdb_malloc calls (pointer array + contiguous NUL-string blob).
+func BenchmarkNewBigNum_32B_destroy(b *testing.B) {
+	data := make([]byte, 32)
+	for i := range data {
+		data[i] = byte(i + 1)
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		bn := NewBigNum(data, false)
+		DestroyBigNum(&bn)
+	}
+}
+
+// CreateEnumType with many labels does two duckdb_malloc calls (pointer array + string blob) via allocNames
+// instead of N separate C strings; see BenchmarkCreateEnumType_64Names.
 func BenchmarkCreateEnumType_64Names(b *testing.B) {
 	names := make([]string, 64)
 	for i := range names {
