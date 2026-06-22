@@ -67,10 +67,6 @@ import (
 	"github.com/apache/arrow-go/v18/arrow/cdata"
 )
 
-// --------------------------------------------------- //
-// Arrow Interface (the new C API bindings)
-// --------------------------------------------------- //
-
 // NewArrowSchema creates a new ArrowSchema from an array of DuckDB logical types and column names.
 // The returned ErrorData must be checked for errors and destroyed with DestroyErrorData.
 func NewArrowSchema(options ArrowOptions, types []LogicalType, names []string) (*arrow.Schema, ErrorData) {
@@ -176,10 +172,6 @@ func DataChunkFromArrow(conn Connection, rec arrow.RecordBatch, schema ArrowConv
 	}
 	return DataChunk{Ptr: unsafe.Pointer(chunk)}, errData
 }
-
-// ------------------------------------------------------------------ //
-// Arrow Interface (entire interface has deprecation notice)
-// ------------------------------------------------------------------ //
 
 // DestroyArrowConvertedSchema wraps duckdb_destroy_arrow_converted_schema.
 func DestroyArrowConvertedSchema(schema *ArrowConvertedSchema) {
