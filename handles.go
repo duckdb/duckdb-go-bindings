@@ -36,7 +36,7 @@ import "unsafe"
 // the same somewhat mysterious runtime error as described for Result.
 // 'runtime error: cgo argument has Go pointer to unpinned Go pointer'.
 // See https://github.com/golang/go/issues/28606#issuecomment-2184269962.
-// When using a type alias, duckdb_result itself contains a Go unsafe.Pointer for its 'void *internal_ptr' field.
+// When using a type alias, duckdb_result itself contains a Go unsafe.Pointer for its 'void *internal_data' field.
 
 // TODO:
 // *duckdb_task_state

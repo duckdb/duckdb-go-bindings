@@ -99,9 +99,10 @@ func ResultReturnType(res Result) ResultType {
 }
 
 // StreamFetchChunk wraps duckdb_stream_fetch_chunk.
-// Returns a data chunk from the streaming result.
-// The returned data chunk must be destroyed with DestroyDataChunk.
-// Returns a data chunk with size 0 when the result is exhausted.
+// Returns StateSuccess with a data chunk from the streaming result.
+// A StateSuccess chunk with size 0 indicates that the result is exhausted.
+// A StateError return indicates that DuckDB returned NULL for an error.
+// The returned data chunk must be destroyed with DestroyDataChunk after StateSuccess.
 // Deprecated: StreamFetchChunk is deprecated.
 func StreamFetchChunk(res Result, outChunk *DataChunk) State {
 	chunk := C.duckdb_stream_fetch_chunk(res.data)
