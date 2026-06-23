@@ -122,67 +122,67 @@ var allocCounts syncMap
 type allocationCounter string
 
 const (
-	vectorAllocation               allocationCounter = "vec"
-	selectionVectorAllocation      allocationCounter = "sel"
-	instanceCacheAllocation        allocationCounter = "cache"
-	databaseAllocation             allocationCounter = "db"
-	connectionAllocation           allocationCounter = "conn"
-	clientContextAllocation        allocationCounter = "ctx"
-	preparedStatementAllocation    allocationCounter = "preparedStmt"
-	extractedStatementsAllocation  allocationCounter = "extractedStmts"
-	pendingResultAllocation        allocationCounter = "pendingRes"
 	appenderAllocation             allocationCounter = "appender"
-	tableDescriptionAllocation     allocationCounter = "tableDesc"
+	arrowAllocation                allocationCounter = "arrow"
+	arrowConvertedSchemaAllocation allocationCounter = "arrowConvertedSchema"
+	arrowOptionsAllocation         allocationCounter = "arrowOptions"
+	bigNumAllocation               allocationCounter = "bigNum"
+	bitAllocation                  allocationCounter = "bit"
+	blobAllocation                 allocationCounter = "blob"
+	clientContextAllocation        allocationCounter = "ctx"
 	configAllocation               allocationCounter = "config"
-	logicalTypeAllocation          allocationCounter = "logicalType"
+	connectionAllocation           allocationCounter = "conn"
 	dataChunkAllocation            allocationCounter = "chunk"
-	valueAllocation                allocationCounter = "v"
+	databaseAllocation             allocationCounter = "db"
 	errorDataAllocation            allocationCounter = "errorData"
 	expressionAllocation           allocationCounter = "expr"
+	extractedStatementsAllocation  allocationCounter = "extractedStmts"
+	instanceCacheAllocation        allocationCounter = "cache"
+	logicalTypeAllocation          allocationCounter = "logicalType"
+	logStorageAllocation           allocationCounter = "logStorage"
+	pendingResultAllocation        allocationCounter = "pendingRes"
+	preparedStatementAllocation    allocationCounter = "preparedStmt"
+	resultAllocation               allocationCounter = "res"
 	scalarFunctionAllocation       allocationCounter = "scalarFunc"
 	scalarFunctionSetAllocation    allocationCounter = "scalarFuncSet"
+	selectionVectorAllocation      allocationCounter = "sel"
+	tableDescriptionAllocation     allocationCounter = "tableDesc"
 	tableFunctionAllocation        allocationCounter = "tableFunc"
-	arrowAllocation                allocationCounter = "arrow"
-	arrowOptionsAllocation         allocationCounter = "arrowOptions"
-	arrowConvertedSchemaAllocation allocationCounter = "arrowConvertedSchema"
-	logStorageAllocation           allocationCounter = "logStorage"
-	blobAllocation                 allocationCounter = "blob"
-	bitAllocation                  allocationCounter = "bit"
-	bigNumAllocation               allocationCounter = "bigNum"
-	resultAllocation               allocationCounter = "res"
+	valueAllocation                allocationCounter = "v"
+	vectorAllocation               allocationCounter = "vec"
 )
 
 // AllocationCounter* constants are stable keys for GetAllocationCount.
 // Prefer these constants over hard-coded counter strings.
 const (
-	AllocationCounterVector               = string(vectorAllocation)
-	AllocationCounterSelectionVector      = string(selectionVectorAllocation)
-	AllocationCounterInstanceCache        = string(instanceCacheAllocation)
-	AllocationCounterDatabase             = string(databaseAllocation)
-	AllocationCounterConnection           = string(connectionAllocation)
-	AllocationCounterClientContext        = string(clientContextAllocation)
-	AllocationCounterPreparedStatement    = string(preparedStatementAllocation)
-	AllocationCounterExtractedStatements  = string(extractedStatementsAllocation)
-	AllocationCounterPendingResult        = string(pendingResultAllocation)
 	AllocationCounterAppender             = string(appenderAllocation)
-	AllocationCounterTableDescription     = string(tableDescriptionAllocation)
+	AllocationCounterArrow                = string(arrowAllocation)
+	AllocationCounterArrowConvertedSchema = string(arrowConvertedSchemaAllocation)
+	AllocationCounterArrowOptions         = string(arrowOptionsAllocation)
+	AllocationCounterBigNum               = string(bigNumAllocation)
+	AllocationCounterBit                  = string(bitAllocation)
+	AllocationCounterBlob                 = string(blobAllocation)
+	AllocationCounterClientContext        = string(clientContextAllocation)
 	AllocationCounterConfig               = string(configAllocation)
-	AllocationCounterLogicalType          = string(logicalTypeAllocation)
+	AllocationCounterConnection           = string(connectionAllocation)
 	AllocationCounterDataChunk            = string(dataChunkAllocation)
-	AllocationCounterValue                = string(valueAllocation)
+	AllocationCounterDatabase             = string(databaseAllocation)
 	AllocationCounterErrorData            = string(errorDataAllocation)
 	AllocationCounterExpression           = string(expressionAllocation)
+	AllocationCounterExtractedStatements  = string(extractedStatementsAllocation)
+	AllocationCounterInstanceCache        = string(instanceCacheAllocation)
+	AllocationCounterLogicalType          = string(logicalTypeAllocation)
+	AllocationCounterLogStorage           = string(logStorageAllocation)
+	AllocationCounterPendingResult        = string(pendingResultAllocation)
+	AllocationCounterPreparedStatement    = string(preparedStatementAllocation)
+	AllocationCounterResult               = string(resultAllocation)
 	AllocationCounterScalarFunction       = string(scalarFunctionAllocation)
 	AllocationCounterScalarFunctionSet    = string(scalarFunctionSetAllocation)
+	AllocationCounterSelectionVector      = string(selectionVectorAllocation)
+	AllocationCounterTableDescription     = string(tableDescriptionAllocation)
 	AllocationCounterTableFunction        = string(tableFunctionAllocation)
-	AllocationCounterArrow                = string(arrowAllocation)
-	AllocationCounterArrowOptions         = string(arrowOptionsAllocation)
-	AllocationCounterArrowConvertedSchema = string(arrowConvertedSchemaAllocation)
-	AllocationCounterLogStorage           = string(logStorageAllocation)
-	AllocationCounterBlob                 = string(blobAllocation)
-	AllocationCounterBit                  = string(bitAllocation)
-	AllocationCounterBigNum               = string(bigNumAllocation)
-	AllocationCounterResult               = string(resultAllocation)
+	AllocationCounterValue                = string(valueAllocation)
+	AllocationCounterVector               = string(vectorAllocation)
 )
 
 func trackAllocation(counter allocationCounter, ptr unsafe.Pointer) {
