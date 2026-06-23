@@ -17,13 +17,8 @@ func CreateDataChunk(types []LogicalType) DataChunk {
 	defer Free(unsafe.Pointer(typesPtr))
 
 	chunk := C.duckdb_create_data_chunk(typesPtr, IdxT(len(types)))
-	if debugMode {
-		incrAllocCount("chunk")
-	}
 
-	return DataChunk{
-		Ptr: unsafe.Pointer(chunk),
-	}
+	return trackedDataChunk(chunk)
 }
 
 // DestroyDataChunk wraps duckdb_destroy_data_chunk.
@@ -31,9 +26,7 @@ func DestroyDataChunk(chunk *DataChunk) {
 	if chunk.Ptr == nil {
 		return
 	}
-	if debugMode {
-		decrAllocCount("chunk")
-	}
+	releaseAllocation(dataChunkAllocation, chunk.Ptr)
 	data := chunk.data()
 	C.duckdb_destroy_data_chunk(&data)
 	chunk.Ptr = nil

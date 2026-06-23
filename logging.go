@@ -14,12 +14,7 @@ import "unsafe"
 // The return value must be destroyed with DestroyLogStorage.
 func CreateLogStorage() LogStorage {
 	logStorage := C.duckdb_create_log_storage()
-	if debugMode {
-		incrAllocCount("logStorage")
-	}
-	return LogStorage{
-		Ptr: unsafe.Pointer(logStorage),
-	}
+	return trackedLogStorage(logStorage)
 }
 
 // DestroyLogStorage wraps duckdb_destroy_log_storage.
@@ -27,9 +22,7 @@ func DestroyLogStorage(logStorage *LogStorage) {
 	if logStorage.Ptr == nil {
 		return
 	}
-	if debugMode {
-		decrAllocCount("logStorage")
-	}
+	releaseAllocation(logStorageAllocation, logStorage.Ptr)
 	data := logStorage.data()
 	C.duckdb_destroy_log_storage(&data)
 	logStorage.Ptr = nil

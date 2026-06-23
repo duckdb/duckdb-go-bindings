@@ -13,13 +13,12 @@ import "unsafe"
 // Query wraps duckdb_query.
 // outRes must be destroyed with DestroyResult.
 func Query(conn Connection, query string, outRes *Result) State {
-	if debugMode {
-		incrAllocCount("res")
-	}
 	cQuery := C.CString(query)
 	defer Free(unsafe.Pointer(cQuery))
 
-	return C.duckdb_query(conn.data(), cQuery, &outRes.data)
+	state := C.duckdb_query(conn.data(), cQuery, &outRes.data)
+	trackedResult(outRes)
+	return state
 }
 
 // DestroyResult wraps duckdb_destroy_result.
@@ -27,9 +26,7 @@ func DestroyResult(res *Result) {
 	if res == nil || res.data.internal_data == nil {
 		return
 	}
-	if debugMode {
-		decrAllocCount("res")
-	}
+	releaseAllocation(resultAllocation, res.data.internal_data)
 	C.duckdb_destroy_result(&res.data)
 	res.data.internal_data = nil
 }
@@ -51,24 +48,14 @@ func ResultStatementType(res Result) StatementType {
 // The return value must be destroyed with DestroyLogicalType.
 func ColumnLogicalType(res *Result, col IdxT) LogicalType {
 	logicalType := C.duckdb_column_logical_type(&res.data, col)
-	if debugMode {
-		incrAllocCount("logicalType")
-	}
-	return LogicalType{
-		Ptr: unsafe.Pointer(logicalType),
-	}
+	return trackedLogicalType(logicalType)
 }
 
 // ResultGetArrowOptions wraps duckdb_result_get_arrow_options.
 // The return value must be destroyed with DestroyArrowOptions.
 func ResultGetArrowOptions(res *Result) ArrowOptions {
 	options := C.duckdb_result_get_arrow_options(&res.data)
-	if debugMode {
-		incrAllocCount("arrowOptions")
-	}
-	return ArrowOptions{
-		Ptr: unsafe.Pointer(options),
-	}
+	return trackedArrowOptions(options)
 }
 
 func ColumnCount(res *Result) IdxT {
@@ -93,12 +80,7 @@ func ResultErrorType(res *Result) ErrorType {
 // Deprecated: See C API documentation.
 func ResultGetChunk(res Result, index IdxT) DataChunk {
 	chunk := C.duckdb_result_get_chunk(res.data, index)
-	if debugMode {
-		incrAllocCount("chunk")
-	}
-	return DataChunk{
-		Ptr: unsafe.Pointer(chunk),
-	}
+	return trackedDataChunk(chunk)
 }
 
 // ResultIsStreaming wraps duckdb_result_is_streaming.
@@ -127,21 +109,13 @@ func StreamFetchChunk(res Result, outChunk *DataChunk) State {
 	if chunk == nil {
 		return StateError
 	}
-	outChunk.Ptr = unsafe.Pointer(chunk)
-	if debugMode {
-		incrAllocCount("chunk")
-	}
+	*outChunk = trackedDataChunk(chunk)
 	return StateSuccess
 }
 
 func FetchChunk(res Result) DataChunk {
 	chunk := C.duckdb_fetch_chunk(res.data)
-	if debugMode && chunk != nil {
-		incrAllocCount("chunk")
-	}
-	return DataChunk{
-		Ptr: unsafe.Pointer(chunk),
-	}
+	return trackedDataChunk(chunk)
 }
 
 // Deprecated: See C API documentation.

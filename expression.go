@@ -8,16 +8,12 @@ package duckdb_go_bindings
 */
 import "C"
 
-import "unsafe"
-
 // DestroyExpression wraps duckdb_destroy_expression.
 func DestroyExpression(expr *Expression) {
 	if expr.Ptr == nil {
 		return
 	}
-	if debugMode {
-		decrAllocCount("expr")
-	}
+	releaseAllocation(expressionAllocation, expr.Ptr)
 	data := expr.data()
 	C.duckdb_destroy_expression(&data)
 	expr.Ptr = nil
@@ -27,12 +23,7 @@ func DestroyExpression(expr *Expression) {
 // The return value must be destroyed with DestroyLogicalType.
 func ExpressionReturnType(expr Expression) LogicalType {
 	logicalType := C.duckdb_expression_return_type(expr.data())
-	if debugMode {
-		incrAllocCount("logicalType")
-	}
-	return LogicalType{
-		Ptr: unsafe.Pointer(logicalType),
-	}
+	return trackedLogicalType(logicalType)
 }
 
 func ExpressionIsFoldable(expr Expression) bool {
@@ -45,12 +36,6 @@ func ExpressionIsFoldable(expr Expression) bool {
 func ExpressionFold(ctx ClientContext, expr Expression, outValue *Value) ErrorData {
 	var value C.duckdb_value
 	errorData := C.duckdb_expression_fold(ctx.data(), expr.data(), &value)
-	outValue.Ptr = unsafe.Pointer(value)
-	if debugMode {
-		incrAllocCount("v")
-		incrAllocCount("errorData")
-	}
-	return ErrorData{
-		Ptr: unsafe.Pointer(errorData),
-	}
+	*outValue = trackedValue(value)
+	return trackedErrorData(errorData)
 }

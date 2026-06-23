@@ -20,10 +20,7 @@ func TableDescriptionCreate(conn Connection, schema string, table string, outDes
 
 	var description C.duckdb_table_description
 	state := C.duckdb_table_description_create(conn.data(), cSchema, cTable, &description)
-	outDesc.Ptr = unsafe.Pointer(description)
-	if debugMode {
-		incrAllocCount("tableDesc")
-	}
+	*outDesc = trackedTableDescription(description)
 	return state
 }
 
@@ -39,10 +36,7 @@ func TableDescriptionCreateExt(conn Connection, catalog string, schema string, t
 
 	var description C.duckdb_table_description
 	state := C.duckdb_table_description_create_ext(conn.data(), cCatalog, cSchema, cTable, &description)
-	outDesc.Ptr = unsafe.Pointer(description)
-	if debugMode {
-		incrAllocCount("tableDesc")
-	}
+	*outDesc = trackedTableDescription(description)
 	return state
 }
 
@@ -51,9 +45,7 @@ func TableDescriptionDestroy(desc *TableDescription) {
 	if desc.Ptr == nil {
 		return
 	}
-	if debugMode {
-		decrAllocCount("tableDesc")
-	}
+	releaseAllocation(tableDescriptionAllocation, desc.Ptr)
 	data := desc.data()
 	C.duckdb_table_description_destroy(&data)
 	desc.Ptr = nil
@@ -85,10 +77,5 @@ func TableDescriptionGetColumnName(desc TableDescription, index IdxT) string {
 // The return value must be destroyed with DestroyLogicalType.
 func TableDescriptionGetColumnType(desc TableDescription, index IdxT) LogicalType {
 	logicalType := C.duckdb_table_description_get_column_type(desc.data(), index)
-	if debugMode {
-		incrAllocCount("logicalType")
-	}
-	return LogicalType{
-		Ptr: unsafe.Pointer(logicalType),
-	}
+	return trackedLogicalType(logicalType)
 }

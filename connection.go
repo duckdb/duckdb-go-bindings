@@ -14,12 +14,7 @@ import "unsafe"
 // The return value must be destroyed with DestroyInstanceCache.
 func CreateInstanceCache() InstanceCache {
 	cache := C.duckdb_create_instance_cache()
-	if debugMode {
-		incrAllocCount("cache")
-	}
-	return InstanceCache{
-		Ptr: unsafe.Pointer(cache),
-	}
+	return trackedInstanceCache(cache)
 }
 
 // GetOrCreateFromCache wraps duckdb_get_or_create_from_cache.
@@ -32,12 +27,8 @@ func GetOrCreateFromCache(cache InstanceCache, path string, outDb *Database, con
 
 	var db C.duckdb_database
 	state := C.duckdb_get_or_create_from_cache(cache.data(), cPath, &db, config.data(), &err)
-	outDb.Ptr = unsafe.Pointer(db)
+	*outDb = trackedDatabase(db)
 	*errMsg = C.GoString(err)
-
-	if debugMode {
-		incrAllocCount("db")
-	}
 	return state
 }
 
@@ -46,9 +37,7 @@ func DestroyInstanceCache(cache *InstanceCache) {
 	if cache.Ptr == nil {
 		return
 	}
-	if debugMode {
-		decrAllocCount("cache")
-	}
+	releaseAllocation(instanceCacheAllocation, cache.Ptr)
 	data := cache.data()
 	C.duckdb_destroy_instance_cache(&data)
 	cache.Ptr = nil
@@ -63,11 +52,7 @@ func Open(path string, outDb *Database) State {
 
 	var db C.duckdb_database
 	state := C.duckdb_open(cPath, &db)
-	outDb.Ptr = unsafe.Pointer(db)
-
-	if debugMode {
-		incrAllocCount("db")
-	}
+	*outDb = trackedDatabase(db)
 	return state
 }
 
@@ -81,12 +66,8 @@ func OpenExt(path string, outDb *Database, config Config, errMsg *string) State 
 
 	var db C.duckdb_database
 	state := C.duckdb_open_ext(cPath, &db, config.data(), &err)
-	outDb.Ptr = unsafe.Pointer(db)
+	*outDb = trackedDatabase(db)
 	*errMsg = C.GoString(err)
-
-	if debugMode {
-		incrAllocCount("db")
-	}
 	return state
 }
 
@@ -95,9 +76,7 @@ func Close(db *Database) {
 	if db.Ptr == nil {
 		return
 	}
-	if debugMode {
-		decrAllocCount("db")
-	}
+	releaseAllocation(databaseAllocation, db.Ptr)
 	data := db.data()
 	C.duckdb_close(&data)
 	db.Ptr = nil
@@ -108,10 +87,7 @@ func Close(db *Database) {
 func Connect(db Database, outConn *Connection) State {
 	var conn C.duckdb_connection
 	state := C.duckdb_connect(db.data(), &conn)
-	outConn.Ptr = unsafe.Pointer(conn)
-	if debugMode {
-		incrAllocCount("conn")
-	}
+	*outConn = trackedConnection(conn)
 	return state
 }
 
@@ -128,9 +104,7 @@ func Disconnect(conn *Connection) {
 	if conn.Ptr == nil {
 		return
 	}
-	if debugMode {
-		decrAllocCount("conn")
-	}
+	releaseAllocation(connectionAllocation, conn.Ptr)
 	data := conn.data()
 	C.duckdb_disconnect(&data)
 	conn.Ptr = nil
@@ -141,10 +115,7 @@ func Disconnect(conn *Connection) {
 func ConnectionGetClientContext(conn Connection, outCtx *ClientContext) {
 	var ctx C.duckdb_client_context
 	C.duckdb_connection_get_client_context(conn.data(), &ctx)
-	outCtx.Ptr = unsafe.Pointer(ctx)
-	if debugMode {
-		incrAllocCount("ctx")
-	}
+	*outCtx = trackedClientContext(ctx)
 }
 
 // ConnectionGetArrowOptions wraps duckdb_connection_get_arrow_options.
@@ -152,10 +123,7 @@ func ConnectionGetClientContext(conn Connection, outCtx *ClientContext) {
 func ConnectionGetArrowOptions(conn Connection, outOptions *ArrowOptions) {
 	var options C.duckdb_arrow_options
 	C.duckdb_connection_get_arrow_options(conn.data(), &options)
-	outOptions.Ptr = unsafe.Pointer(options)
-	if debugMode {
-		incrAllocCount("arrowOptions")
-	}
+	*outOptions = trackedArrowOptions(options)
 }
 
 func ClientContextGetConnectionId(ctx ClientContext) IdxT {
@@ -167,9 +135,7 @@ func DestroyClientContext(ctx *ClientContext) {
 	if ctx.Ptr == nil {
 		return
 	}
-	if debugMode {
-		decrAllocCount("ctx")
-	}
+	releaseAllocation(clientContextAllocation, ctx.Ptr)
 	data := ctx.data()
 	C.duckdb_destroy_client_context(&data)
 	ctx.Ptr = nil
@@ -180,9 +146,7 @@ func DestroyArrowOptions(options *ArrowOptions) {
 	if options.Ptr == nil {
 		return
 	}
-	if debugMode {
-		decrAllocCount("arrowOptions")
-	}
+	releaseAllocation(arrowOptionsAllocation, options.Ptr)
 	data := options.data()
 	C.duckdb_destroy_arrow_options(&data)
 	options.Ptr = nil
@@ -199,10 +163,5 @@ func GetTableNames(conn Connection, query string, qualified bool) Value {
 	cQuery := C.CString(query)
 	defer Free(unsafe.Pointer(cQuery))
 	v := C.duckdb_get_table_names(conn.data(), cQuery, C.bool(qualified))
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }

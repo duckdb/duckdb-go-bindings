@@ -41,6 +41,148 @@ import "unsafe"
 // TODO:
 // *duckdb_task_state
 
+func trackedVector(vec C.duckdb_vector) Vector {
+	trackAllocation(vectorAllocation, unsafe.Pointer(vec))
+	return Vector{Ptr: unsafe.Pointer(vec)}
+}
+
+func trackedSelectionVector(sel C.duckdb_selection_vector) SelectionVector {
+	trackAllocation(selectionVectorAllocation, unsafe.Pointer(sel))
+	return SelectionVector{Ptr: unsafe.Pointer(sel)}
+}
+
+func trackedInstanceCache(cache C.duckdb_instance_cache) InstanceCache {
+	trackAllocation(instanceCacheAllocation, unsafe.Pointer(cache))
+	return InstanceCache{Ptr: unsafe.Pointer(cache)}
+}
+
+func trackedDatabase(db C.duckdb_database) Database {
+	trackAllocation(databaseAllocation, unsafe.Pointer(db))
+	return Database{Ptr: unsafe.Pointer(db)}
+}
+
+func trackedConnection(conn C.duckdb_connection) Connection {
+	trackAllocation(connectionAllocation, unsafe.Pointer(conn))
+	return Connection{Ptr: unsafe.Pointer(conn)}
+}
+
+func trackedClientContext(ctx C.duckdb_client_context) ClientContext {
+	trackAllocation(clientContextAllocation, unsafe.Pointer(ctx))
+	return ClientContext{Ptr: unsafe.Pointer(ctx)}
+}
+
+func trackedPreparedStatement(preparedStmt C.duckdb_prepared_statement) PreparedStatement {
+	trackAllocation(preparedStatementAllocation, unsafe.Pointer(preparedStmt))
+	return PreparedStatement{Ptr: unsafe.Pointer(preparedStmt)}
+}
+
+func trackedExtractedStatements(extractedStmts C.duckdb_extracted_statements) ExtractedStatements {
+	trackAllocation(extractedStatementsAllocation, unsafe.Pointer(extractedStmts))
+	return ExtractedStatements{Ptr: unsafe.Pointer(extractedStmts)}
+}
+
+func trackedPendingResult(pendingRes C.duckdb_pending_result) PendingResult {
+	trackAllocation(pendingResultAllocation, unsafe.Pointer(pendingRes))
+	return PendingResult{Ptr: unsafe.Pointer(pendingRes)}
+}
+
+func trackedAppender(appender C.duckdb_appender) Appender {
+	trackAllocation(appenderAllocation, unsafe.Pointer(appender))
+	return Appender{Ptr: unsafe.Pointer(appender)}
+}
+
+func trackedTableDescription(description C.duckdb_table_description) TableDescription {
+	trackAllocation(tableDescriptionAllocation, unsafe.Pointer(description))
+	return TableDescription{Ptr: unsafe.Pointer(description)}
+}
+
+func trackedConfig(config C.duckdb_config) Config {
+	trackAllocation(configAllocation, unsafe.Pointer(config))
+	return Config{Ptr: unsafe.Pointer(config)}
+}
+
+func trackedLogicalType(logicalType C.duckdb_logical_type) LogicalType {
+	trackAllocation(logicalTypeAllocation, unsafe.Pointer(logicalType))
+	return LogicalType{Ptr: unsafe.Pointer(logicalType)}
+}
+
+func trackedDataChunk(chunk C.duckdb_data_chunk) DataChunk {
+	trackAllocation(dataChunkAllocation, unsafe.Pointer(chunk))
+	return DataChunk{Ptr: unsafe.Pointer(chunk)}
+}
+
+func trackedValue(v C.duckdb_value) Value {
+	trackAllocation(valueAllocation, unsafe.Pointer(v))
+	return Value{Ptr: unsafe.Pointer(v)}
+}
+
+func trackedResult(res *Result) {
+	if res == nil {
+		return
+	}
+	trackAllocation(resultAllocation, res.data.internal_data)
+}
+
+func trackedErrorData(errorData C.duckdb_error_data) ErrorData {
+	trackAllocation(errorDataAllocation, unsafe.Pointer(errorData))
+	return ErrorData{Ptr: unsafe.Pointer(errorData)}
+}
+
+func trackedBlob(blob Blob) Blob {
+	trackAllocation(blobAllocation, blob.data)
+	return blob
+}
+
+func trackedBit(bit Bit) Bit {
+	trackAllocation(bitAllocation, unsafe.Pointer(bit.data))
+	return bit
+}
+
+func trackedBigNum(bigNum BigNum) BigNum {
+	trackAllocation(bigNumAllocation, unsafe.Pointer(bigNum.data))
+	return bigNum
+}
+
+func trackedExpression(expr C.duckdb_expression) Expression {
+	trackAllocation(expressionAllocation, unsafe.Pointer(expr))
+	return Expression{Ptr: unsafe.Pointer(expr)}
+}
+
+func trackedScalarFunction(f C.duckdb_scalar_function) ScalarFunction {
+	trackAllocation(scalarFunctionAllocation, unsafe.Pointer(f))
+	return ScalarFunction{Ptr: unsafe.Pointer(f)}
+}
+
+func trackedScalarFunctionSet(set C.duckdb_scalar_function_set) ScalarFunctionSet {
+	trackAllocation(scalarFunctionSetAllocation, unsafe.Pointer(set))
+	return ScalarFunctionSet{Ptr: unsafe.Pointer(set)}
+}
+
+func trackedTableFunction(f C.duckdb_table_function) TableFunction {
+	trackAllocation(tableFunctionAllocation, unsafe.Pointer(f))
+	return TableFunction{Ptr: unsafe.Pointer(f)}
+}
+
+func trackedArrow(arrow C.duckdb_arrow) Arrow {
+	trackAllocation(arrowAllocation, unsafe.Pointer(arrow))
+	return Arrow{Ptr: unsafe.Pointer(arrow)}
+}
+
+func trackedArrowOptions(options C.duckdb_arrow_options) ArrowOptions {
+	trackAllocation(arrowOptionsAllocation, unsafe.Pointer(options))
+	return ArrowOptions{Ptr: unsafe.Pointer(options)}
+}
+
+func trackedArrowConvertedSchema(schema C.duckdb_arrow_converted_schema) ArrowConvertedSchema {
+	trackAllocation(arrowConvertedSchemaAllocation, unsafe.Pointer(schema))
+	return ArrowConvertedSchema{Ptr: unsafe.Pointer(schema)}
+}
+
+func trackedLogStorage(logStorage C.duckdb_log_storage) LogStorage {
+	trackAllocation(logStorageAllocation, unsafe.Pointer(logStorage))
+	return LogStorage{Ptr: unsafe.Pointer(logStorage)}
+}
+
 // Vector wraps *duckdb_vector.
 type Vector struct {
 	Ptr unsafe.Pointer

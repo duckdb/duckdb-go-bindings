@@ -21,10 +21,7 @@ func AppenderCreate(conn Connection, schema string, table string, outAppender *A
 
 	var appender C.duckdb_appender
 	state := C.duckdb_appender_create(conn.data(), cSchema, cTable, &appender)
-	outAppender.Ptr = unsafe.Pointer(appender)
-	if debugMode {
-		incrAllocCount("appender")
-	}
+	*outAppender = trackedAppender(appender)
 	return state
 }
 
@@ -40,10 +37,7 @@ func AppenderCreateExt(conn Connection, catalog string, schema string, table str
 
 	var appender C.duckdb_appender
 	state := C.duckdb_appender_create_ext(conn.data(), cCatalog, cSchema, cTable, &appender)
-	outAppender.Ptr = unsafe.Pointer(appender)
-	if debugMode {
-		incrAllocCount("appender")
-	}
+	*outAppender = trackedAppender(appender)
 	return state
 }
 
@@ -69,10 +63,7 @@ func AppenderCreateQuery(conn Connection, query string, types []LogicalType, tab
 	columnCount := IdxT(len(types))
 	var appender C.duckdb_appender
 	state := C.duckdb_appender_create_query(conn.data(), cQuery, columnCount, typesPtr, (*C.char)(cTableName), namesAlloc.arr, &appender)
-	outAppender.Ptr = unsafe.Pointer(appender)
-	if debugMode {
-		incrAllocCount("appender")
-	}
+	*outAppender = trackedAppender(appender)
 	return state
 }
 
@@ -84,12 +75,7 @@ func AppenderColumnCount(appender Appender) IdxT {
 // The return value must be destroyed with DestroyLogicalType.
 func AppenderColumnType(appender Appender, index IdxT) LogicalType {
 	logicalType := C.duckdb_appender_column_type(appender.data(), index)
-	if debugMode {
-		incrAllocCount("logicalType")
-	}
-	return LogicalType{
-		Ptr: unsafe.Pointer(logicalType),
-	}
+	return trackedLogicalType(logicalType)
 }
 
 func AppenderError(appender Appender) string {
@@ -101,12 +87,7 @@ func AppenderError(appender Appender) string {
 // The return value must be destroyed with DestroyErrorData.
 func AppenderErrorData(appender Appender) ErrorData {
 	errorData := C.duckdb_appender_error_data(appender.data())
-	if debugMode {
-		incrAllocCount("errorData")
-	}
-	return ErrorData{
-		Ptr: unsafe.Pointer(errorData),
-	}
+	return trackedErrorData(errorData)
 }
 
 func AppenderFlush(appender Appender) State {
@@ -126,9 +107,7 @@ func AppenderDestroy(appender *Appender) State {
 	if appender.Ptr == nil {
 		return StateSuccess
 	}
-	if debugMode {
-		decrAllocCount("appender")
-	}
+	releaseAllocation(appenderAllocation, appender.Ptr)
 	data := appender.data()
 	state := C.duckdb_appender_destroy(&data)
 	appender.Ptr = nil

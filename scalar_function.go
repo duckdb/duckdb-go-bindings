@@ -14,12 +14,7 @@ import "unsafe"
 // The return value must be destroyed with DestroyScalarFunction.
 func CreateScalarFunction() ScalarFunction {
 	f := C.duckdb_create_scalar_function()
-	if debugMode {
-		incrAllocCount("scalarFunc")
-	}
-	return ScalarFunction{
-		Ptr: unsafe.Pointer(f),
-	}
+	return trackedScalarFunction(f)
 }
 
 // DestroyScalarFunction wraps duckdb_destroy_scalar_function.
@@ -27,9 +22,7 @@ func DestroyScalarFunction(f *ScalarFunction) {
 	if f.Ptr == nil {
 		return
 	}
-	if debugMode {
-		decrAllocCount("scalarFunc")
-	}
+	releaseAllocation(scalarFunctionAllocation, f.Ptr)
 	data := f.data()
 	C.duckdb_destroy_scalar_function(&data)
 	f.Ptr = nil
@@ -113,10 +106,7 @@ func ScalarFunctionGetBindData(info FunctionInfo) unsafe.Pointer {
 func ScalarFunctionGetClientContext(info BindInfo, outCtx *ClientContext) {
 	var ctx C.duckdb_client_context
 	C.duckdb_scalar_function_get_client_context(info.data(), &ctx)
-	outCtx.Ptr = unsafe.Pointer(ctx)
-	if debugMode {
-		incrAllocCount("ctx")
-	}
+	*outCtx = trackedClientContext(ctx)
 }
 
 func ScalarFunctionSetError(info FunctionInfo, err string) {
@@ -132,12 +122,7 @@ func CreateScalarFunctionSet(name string) ScalarFunctionSet {
 	defer Free(unsafe.Pointer(cName))
 
 	set := C.duckdb_create_scalar_function_set(cName)
-	if debugMode {
-		incrAllocCount("scalarFuncSet")
-	}
-	return ScalarFunctionSet{
-		Ptr: unsafe.Pointer(set),
-	}
+	return trackedScalarFunctionSet(set)
 }
 
 // DestroyScalarFunctionSet wraps duckdb_destroy_scalar_function_set.
@@ -145,9 +130,7 @@ func DestroyScalarFunctionSet(set *ScalarFunctionSet) {
 	if set.Ptr == nil {
 		return
 	}
-	if debugMode {
-		decrAllocCount("scalarFuncSet")
-	}
+	releaseAllocation(scalarFunctionSetAllocation, set.Ptr)
 	data := set.data()
 	C.duckdb_destroy_scalar_function_set(&data)
 	set.Ptr = nil
@@ -169,10 +152,5 @@ func ScalarFunctionBindGetArgumentCount(info BindInfo) IdxT {
 // The return value must be destroyed with DestroyExpression.
 func ScalarFunctionBindGetArgument(info BindInfo, index IdxT) Expression {
 	expr := C.duckdb_scalar_function_bind_get_argument(info.data(), index)
-	if debugMode {
-		incrAllocCount("expr")
-	}
-	return Expression{
-		Ptr: unsafe.Pointer(expr),
-	}
+	return trackedExpression(expr)
 }
