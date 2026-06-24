@@ -10,6 +10,8 @@ import (
 func withIsolatedAllocationCounts(t *testing.T) {
 	t.Helper()
 
+	// Tests using this helper must stay serial: it swaps package-global
+	// allocation state while the test is running.
 	allocCounts.lock.Lock()
 	previous := allocCounts.m
 	allocCounts.m = nil
