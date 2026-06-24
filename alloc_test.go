@@ -3,6 +3,8 @@ package duckdb_go_bindings
 import (
 	"testing"
 	"unsafe"
+
+	"github.com/stretchr/testify/require"
 )
 
 func withIsolatedAllocationCounts(t *testing.T) {
@@ -27,42 +29,34 @@ func TestAllocationCountersUseStablePublicKeys(t *testing.T) {
 	incrAllocationCount(databaseAllocation)
 
 	got, ok := GetAllocationCount(AllocationCounterValue)
-	if !ok || got != 1 {
-		t.Fatalf("GetAllocationCount(%q) = %d, %t; want 1, true", AllocationCounterValue, got, ok)
-	}
+	require.True(t, ok)
+	require.Equal(t, 1, got)
 
 	got, ok = GetAllocationCount(AllocationCounterDatabase)
-	if !ok || got != 1 {
-		t.Fatalf("GetAllocationCount(%q) = %d, %t; want 1, true", AllocationCounterDatabase, got, ok)
-	}
+	require.True(t, ok)
+	require.Equal(t, 1, got)
 
 	got, ok = GetAllocationCount("value")
-	if ok || got != 0 {
-		t.Fatalf("GetAllocationCount(\"value\") = %d, %t; want 0, false", got, ok)
-	}
+	require.False(t, ok)
+	require.Zero(t, got)
 
 	const want = "db count is 1\nv count is 1\n"
-	if got := GetAllocationCounts(); got != want {
-		t.Fatalf("GetAllocationCounts() = %q; want %q", got, want)
-	}
+	require.Equal(t, want, GetAllocationCounts())
 }
 
 func TestDecrAllocationCountAbsentIsNoOp(t *testing.T) {
 	withIsolatedAllocationCounts(t)
 
 	decrAllocationCount(valueAllocation)
-	if got := GetAllocationCounts(); got != "" {
-		t.Fatalf("GetAllocationCounts() after absent decrement = %q; want empty", got)
-	}
+	require.Empty(t, GetAllocationCounts())
 
 	incrAllocationCount(valueAllocation)
 	decrAllocationCount(valueAllocation)
 	decrAllocationCount(valueAllocation)
 
 	got, ok := GetAllocationCount(AllocationCounterValue)
-	if ok || got != 0 {
-		t.Fatalf("GetAllocationCount(%q) after double decrement = %d, %t; want 0, false", AllocationCounterValue, got, ok)
-	}
+	require.False(t, ok)
+	require.Zero(t, got)
 }
 
 func TestTrackAllocationHonorsDebugMode(t *testing.T) {
@@ -73,15 +67,13 @@ func TestTrackAllocationHonorsDebugMode(t *testing.T) {
 
 	got, ok := GetAllocationCount(AllocationCounterValue)
 	if debugMode {
-		if !ok || got != 1 {
-			t.Fatalf("GetAllocationCount(%q) = %d, %t; want 1, true", AllocationCounterValue, got, ok)
-		}
+		require.True(t, ok)
+		require.Equal(t, 1, got)
 		return
 	}
 
-	if ok || got != 0 {
-		t.Fatalf("GetAllocationCount(%q) = %d, %t; want 0, false", AllocationCounterValue, got, ok)
-	}
+	require.False(t, ok)
+	require.Zero(t, got)
 }
 
 func TestTrackAllocationIgnoresNilPointer(t *testing.T) {
@@ -90,9 +82,8 @@ func TestTrackAllocationIgnoresNilPointer(t *testing.T) {
 	trackAllocation(valueAllocation, nil)
 
 	got, ok := GetAllocationCount(AllocationCounterValue)
-	if ok || got != 0 {
-		t.Fatalf("GetAllocationCount(%q) = %d, %t; want 0, false", AllocationCounterValue, got, ok)
-	}
+	require.False(t, ok)
+	require.Zero(t, got)
 }
 
 func TestTrackedResultIgnoresEmptyResult(t *testing.T) {
@@ -101,7 +92,6 @@ func TestTrackedResultIgnoresEmptyResult(t *testing.T) {
 	trackedResult(&Result{})
 
 	got, ok := GetAllocationCount(AllocationCounterResult)
-	if ok || got != 0 {
-		t.Fatalf("GetAllocationCount(%q) = %d, %t; want 0, false", AllocationCounterResult, got, ok)
-	}
+	require.False(t, ok)
+	require.Zero(t, got)
 }
