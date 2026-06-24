@@ -11,6 +11,7 @@ import "C"
 import (
 	"fmt"
 	"log"
+	"sort"
 	"sync"
 	"unsafe"
 )
@@ -118,43 +119,122 @@ func allocNames(names []string) nameListAlloc {
 
 var allocCounts syncMap
 
-type syncMap struct {
-	lock sync.Mutex
-	m    map[string]int
+type allocationCounter string
+
+const (
+	appenderAllocation             allocationCounter = "appender"
+	arrowAllocation                allocationCounter = "arrow"
+	arrowConvertedSchemaAllocation allocationCounter = "arrowConvertedSchema"
+	arrowOptionsAllocation         allocationCounter = "arrowOptions"
+	bigNumAllocation               allocationCounter = "bigNum"
+	bitAllocation                  allocationCounter = "bit"
+	blobAllocation                 allocationCounter = "blob"
+	clientContextAllocation        allocationCounter = "ctx"
+	configAllocation               allocationCounter = "config"
+	connectionAllocation           allocationCounter = "conn"
+	dataChunkAllocation            allocationCounter = "chunk"
+	databaseAllocation             allocationCounter = "db"
+	errorDataAllocation            allocationCounter = "errorData"
+	expressionAllocation           allocationCounter = "expr"
+	extractedStatementsAllocation  allocationCounter = "extractedStmts"
+	instanceCacheAllocation        allocationCounter = "cache"
+	logicalTypeAllocation          allocationCounter = "logicalType"
+	logStorageAllocation           allocationCounter = "logStorage"
+	pendingResultAllocation        allocationCounter = "pendingRes"
+	preparedStatementAllocation    allocationCounter = "preparedStmt"
+	resultAllocation               allocationCounter = "res"
+	scalarFunctionAllocation       allocationCounter = "scalarFunc"
+	scalarFunctionSetAllocation    allocationCounter = "scalarFuncSet"
+	selectionVectorAllocation      allocationCounter = "sel"
+	tableDescriptionAllocation     allocationCounter = "tableDesc"
+	tableFunctionAllocation        allocationCounter = "tableFunc"
+	valueAllocation                allocationCounter = "v"
+	vectorAllocation               allocationCounter = "vec"
+)
+
+// AllocationCounter* constants are stable keys for GetAllocationCount.
+// Prefer these constants over hard-coded counter strings.
+const (
+	AllocationCounterAppender             = string(appenderAllocation)
+	AllocationCounterArrow                = string(arrowAllocation)
+	AllocationCounterArrowConvertedSchema = string(arrowConvertedSchemaAllocation)
+	AllocationCounterArrowOptions         = string(arrowOptionsAllocation)
+	AllocationCounterBigNum               = string(bigNumAllocation)
+	AllocationCounterBit                  = string(bitAllocation)
+	AllocationCounterBlob                 = string(blobAllocation)
+	AllocationCounterClientContext        = string(clientContextAllocation)
+	AllocationCounterConfig               = string(configAllocation)
+	AllocationCounterConnection           = string(connectionAllocation)
+	AllocationCounterDataChunk            = string(dataChunkAllocation)
+	AllocationCounterDatabase             = string(databaseAllocation)
+	AllocationCounterErrorData            = string(errorDataAllocation)
+	AllocationCounterExpression           = string(expressionAllocation)
+	AllocationCounterExtractedStatements  = string(extractedStatementsAllocation)
+	AllocationCounterInstanceCache        = string(instanceCacheAllocation)
+	AllocationCounterLogicalType          = string(logicalTypeAllocation)
+	AllocationCounterLogStorage           = string(logStorageAllocation)
+	AllocationCounterPendingResult        = string(pendingResultAllocation)
+	AllocationCounterPreparedStatement    = string(preparedStatementAllocation)
+	AllocationCounterResult               = string(resultAllocation)
+	AllocationCounterScalarFunction       = string(scalarFunctionAllocation)
+	AllocationCounterScalarFunctionSet    = string(scalarFunctionSetAllocation)
+	AllocationCounterSelectionVector      = string(selectionVectorAllocation)
+	AllocationCounterTableDescription     = string(tableDescriptionAllocation)
+	AllocationCounterTableFunction        = string(tableFunctionAllocation)
+	AllocationCounterValue                = string(valueAllocation)
+	AllocationCounterVector               = string(vectorAllocation)
+)
+
+func trackAllocation(counter allocationCounter, ptr unsafe.Pointer) {
+	if debugMode && ptr != nil {
+		incrAllocationCount(counter)
+	}
 }
 
-func incrAllocCount(k string) {
+func releaseAllocation(counter allocationCounter, ptr unsafe.Pointer) {
+	if debugMode && ptr != nil {
+		decrAllocationCount(counter)
+	}
+}
+
+func incrAllocationCount(counter allocationCounter) {
 	allocCounts.lock.Lock()
 	defer allocCounts.lock.Unlock()
 
 	if allocCounts.m == nil {
-		allocCounts.m = make(map[string]int)
+		allocCounts.m = make(map[allocationCounter]int)
 	}
 
-	allocCounts.m[k]++
+	allocCounts.m[counter]++
 }
 
-func decrAllocCount(k string) {
+func decrAllocationCount(counter allocationCounter) {
 	allocCounts.lock.Lock()
 	defer allocCounts.lock.Unlock()
 
 	if allocCounts.m == nil {
-		allocCounts.m = make(map[string]int)
+		return
 	}
 
-	if v, ok := allocCounts.m[k]; ok {
+	if v, ok := allocCounts.m[counter]; ok {
 		if v == 1 {
-			delete(allocCounts.m, k)
+			delete(allocCounts.m, counter)
 			return
 		}
-		allocCounts.m[k]--
+		allocCounts.m[counter]--
 	}
+}
+
+type syncMap struct {
+	lock sync.Mutex
+	m    map[allocationCounter]int
 }
 
 // VerifyAllocationCounters verifies all allocation counters.
 // This includes the instance cache, which should be kept alive as long as the application is kept alive,
 // causing this verification to fail.
-// If you're using the instance cache, use VerifyAllocationCounter instead.
+// If you're using the instance cache, use GetAllocationCount with
+// AllocationCounterInstanceCache to account for it explicitly.
 func VerifyAllocationCounters() {
 	msg := GetAllocationCounts()
 	if msg != "" {
@@ -163,7 +243,8 @@ func VerifyAllocationCounters() {
 }
 
 // GetAllocationCount returns the value of an allocation count, and true,
-// if it exists, otherwise zero, and false.
+// if it exists, otherwise zero, and false. Use the AllocationCounter*
+// constants instead of hard-coded strings.
 func GetAllocationCount(k string) (int, bool) {
 	allocCounts.lock.Lock()
 	defer allocCounts.lock.Unlock()
@@ -172,7 +253,7 @@ func GetAllocationCount(k string) (int, bool) {
 		return 0, false
 	}
 
-	v, ok := allocCounts.m[k]
+	v, ok := allocCounts.m[allocationCounter(k)]
 	return v, ok
 }
 
@@ -185,12 +266,17 @@ func GetAllocationCounts() string {
 		return ""
 	}
 
-	msg := ""
-	if len(allocCounts.m) != 0 {
-		for k, v := range allocCounts.m {
-			msg += fmt.Sprintf("%s count is %d\n", k, v)
-		}
+	keys := make([]allocationCounter, 0, len(allocCounts.m))
+	for counter := range allocCounts.m {
+		keys = append(keys, counter)
 	}
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] < keys[j]
+	})
 
+	msg := ""
+	for _, k := range keys {
+		msg += fmt.Sprintf("%s count is %d\n", k, allocCounts.m[k])
+	}
 	return msg
 }

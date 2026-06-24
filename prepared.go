@@ -18,10 +18,7 @@ func Prepare(conn Connection, query string, outPreparedStmt *PreparedStatement) 
 
 	var preparedStmt C.duckdb_prepared_statement
 	state := C.duckdb_prepare(conn.data(), cQuery, &preparedStmt)
-	outPreparedStmt.Ptr = unsafe.Pointer(preparedStmt)
-	if debugMode {
-		incrAllocCount("preparedStmt")
-	}
+	*outPreparedStmt = trackedPreparedStatement(preparedStmt)
 	return state
 }
 
@@ -30,9 +27,7 @@ func DestroyPrepare(preparedStmt *PreparedStatement) {
 	if preparedStmt.Ptr == nil {
 		return
 	}
-	if debugMode {
-		decrAllocCount("preparedStmt")
-	}
+	releaseAllocation(preparedStatementAllocation, preparedStmt.Ptr)
 	data := preparedStmt.data()
 	C.duckdb_destroy_prepare(&data)
 	preparedStmt.Ptr = nil
@@ -61,12 +56,7 @@ func ParamType(preparedStmt PreparedStatement, index IdxT) Type {
 // The return value must be destroyed with DestroyLogicalType.
 func ParamLogicalType(preparedStmt PreparedStatement, index IdxT) LogicalType {
 	logicalType := C.duckdb_param_logical_type(preparedStmt.data(), index)
-	if debugMode {
-		incrAllocCount("logicalType")
-	}
-	return LogicalType{
-		Ptr: unsafe.Pointer(logicalType),
-	}
+	return trackedLogicalType(logicalType)
 }
 
 func ClearBindings(preparedStmt PreparedStatement) State {
@@ -91,12 +81,7 @@ func PreparedStatementColumnName(preparedStmt PreparedStatement, index IdxT) str
 // The return value must be destroyed with DestroyLogicalType.
 func PreparedStatementColumnLogicalType(preparedStmt PreparedStatement, index IdxT) LogicalType {
 	logicalType := C.duckdb_prepared_statement_column_logical_type(preparedStmt.data(), index)
-	if debugMode {
-		incrAllocCount("logicalType")
-	}
-	return LogicalType{
-		Ptr: unsafe.Pointer(logicalType),
-	}
+	return trackedLogicalType(logicalType)
 }
 
 func PreparedStatementColumnType(preparedStmt PreparedStatement, index IdxT) Type {
@@ -216,20 +201,18 @@ func BindNull(preparedStmt PreparedStatement, index IdxT) State {
 // ExecutePrepared wraps duckdb_execute_prepared.
 // outRes must be destroyed with DestroyResult.
 func ExecutePrepared(preparedStmt PreparedStatement, outRes *Result) State {
-	if debugMode {
-		incrAllocCount("res")
-	}
-	return C.duckdb_execute_prepared(preparedStmt.data(), &outRes.data)
+	state := C.duckdb_execute_prepared(preparedStmt.data(), &outRes.data)
+	trackedResult(outRes)
+	return state
 }
 
 // ExecutePreparedStreaming wraps duckdb_execute_prepared_streaming.
 // outRes must be destroyed with DestroyResult.
 // Deprecated: ExecutePreparedStreaming is deprecated.
 func ExecutePreparedStreaming(preparedStmt PreparedStatement, outRes *Result) State {
-	if debugMode {
-		incrAllocCount("res")
-	}
-	return C.duckdb_execute_prepared_streaming(preparedStmt.data(), &outRes.data)
+	state := C.duckdb_execute_prepared_streaming(preparedStmt.data(), &outRes.data)
+	trackedResult(outRes)
+	return state
 }
 
 // ExtractStatements wraps duckdb_extract_statements.
@@ -240,10 +223,7 @@ func ExtractStatements(conn Connection, query string, outExtractedStmts *Extract
 
 	var extractedStmts C.duckdb_extracted_statements
 	count := C.duckdb_extract_statements(conn.data(), cQuery, &extractedStmts)
-	outExtractedStmts.Ptr = unsafe.Pointer(extractedStmts)
-	if debugMode {
-		incrAllocCount("extractedStmts")
-	}
+	*outExtractedStmts = trackedExtractedStatements(extractedStmts)
 	return count
 }
 
@@ -252,10 +232,7 @@ func ExtractStatements(conn Connection, query string, outExtractedStmts *Extract
 func PrepareExtractedStatement(conn Connection, extractedStmts ExtractedStatements, index IdxT, outPreparedStmt *PreparedStatement) State {
 	var preparedStmt C.duckdb_prepared_statement
 	state := C.duckdb_prepare_extracted_statement(conn.data(), extractedStmts.data(), index, &preparedStmt)
-	outPreparedStmt.Ptr = unsafe.Pointer(preparedStmt)
-	if debugMode {
-		incrAllocCount("preparedStmt")
-	}
+	*outPreparedStmt = trackedPreparedStatement(preparedStmt)
 	return state
 }
 
@@ -269,9 +246,7 @@ func DestroyExtracted(extractedStmts *ExtractedStatements) {
 	if extractedStmts.Ptr == nil {
 		return
 	}
-	if debugMode {
-		decrAllocCount("extractedStmts")
-	}
+	releaseAllocation(extractedStatementsAllocation, extractedStmts.Ptr)
 	data := extractedStmts.data()
 	C.duckdb_destroy_extracted(&data)
 	extractedStmts.Ptr = nil
@@ -282,10 +257,7 @@ func DestroyExtracted(extractedStmts *ExtractedStatements) {
 func PendingPrepared(preparedStmt PreparedStatement, outPendingRes *PendingResult) State {
 	var pendingRes C.duckdb_pending_result
 	state := C.duckdb_pending_prepared(preparedStmt.data(), &pendingRes)
-	outPendingRes.Ptr = unsafe.Pointer(pendingRes)
-	if debugMode {
-		incrAllocCount("pendingRes")
-	}
+	*outPendingRes = trackedPendingResult(pendingRes)
 	return state
 }
 
@@ -295,10 +267,7 @@ func PendingPrepared(preparedStmt PreparedStatement, outPendingRes *PendingResul
 func PendingPreparedStreaming(preparedStmt PreparedStatement, outPendingRes *PendingResult) State {
 	var pendingRes C.duckdb_pending_result
 	state := C.duckdb_pending_prepared_streaming(preparedStmt.data(), &pendingRes)
-	outPendingRes.Ptr = unsafe.Pointer(pendingRes)
-	if debugMode {
-		incrAllocCount("pendingRes")
-	}
+	*outPendingRes = trackedPendingResult(pendingRes)
 	return state
 }
 
@@ -307,9 +276,7 @@ func DestroyPending(pendingRes *PendingResult) {
 	if pendingRes.Ptr == nil {
 		return
 	}
-	if debugMode {
-		decrAllocCount("pendingRes")
-	}
+	releaseAllocation(pendingResultAllocation, pendingRes.Ptr)
 	data := pendingRes.data()
 	C.duckdb_destroy_pending(&data)
 	pendingRes.Ptr = nil
@@ -331,10 +298,9 @@ func PendingExecuteCheckState(pendingRes PendingResult) PendingState {
 // ExecutePending wraps duckdb_execute_pending.
 // outRes must be destroyed with DestroyResult.
 func ExecutePending(res PendingResult, outRes *Result) State {
-	if debugMode {
-		incrAllocCount("res")
-	}
-	return C.duckdb_execute_pending(res.data(), &outRes.data)
+	state := C.duckdb_execute_pending(res.data(), &outRes.data)
+	trackedResult(outRes)
+	return state
 }
 
 func PendingExecutionIsFinished(state PendingState) bool {

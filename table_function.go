@@ -14,12 +14,7 @@ import "unsafe"
 // The return value must be destroyed with DestroyTableFunction.
 func CreateTableFunction() TableFunction {
 	f := C.duckdb_create_table_function()
-	if debugMode {
-		incrAllocCount("tableFunc")
-	}
-	return TableFunction{
-		Ptr: unsafe.Pointer(f),
-	}
+	return trackedTableFunction(f)
 }
 
 // DestroyTableFunction wraps duckdb_destroy_table_function.
@@ -27,9 +22,7 @@ func DestroyTableFunction(f *TableFunction) {
 	if f.Ptr == nil {
 		return
 	}
-	if debugMode {
-		decrAllocCount("tableFunc")
-	}
+	releaseAllocation(tableFunctionAllocation, f.Ptr)
 	data := f.data()
 	C.duckdb_destroy_table_function(&data)
 	f.Ptr = nil
@@ -93,10 +86,7 @@ func BindGetExtraInfo(info BindInfo) unsafe.Pointer {
 func TableFunctionGetClientContext(info BindInfo, outCtx *ClientContext) {
 	var ctx C.duckdb_client_context
 	C.duckdb_table_function_get_client_context(info.data(), &ctx)
-	outCtx.Ptr = unsafe.Pointer(ctx)
-	if debugMode {
-		incrAllocCount("ctx")
-	}
+	*outCtx = trackedClientContext(ctx)
 }
 
 func BindAddResultColumn(info BindInfo, name string, logicalType LogicalType) {
@@ -113,12 +103,7 @@ func BindGetParameterCount(info BindInfo) IdxT {
 // The return value must be destroyed with DestroyValue.
 func BindGetParameter(info BindInfo, index IdxT) Value {
 	v := C.duckdb_bind_get_parameter(info.data(), index)
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // BindGetNamedParameter wraps duckdb_bind_get_named_parameter.
@@ -127,12 +112,7 @@ func BindGetNamedParameter(info BindInfo, name string) Value {
 	cName := C.CString(name)
 	defer Free(unsafe.Pointer(cName))
 	v := C.duckdb_bind_get_named_parameter(info.data(), cName)
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 func BindSetBindData(info BindInfo, bindDataPtr unsafe.Pointer, callbackPtr unsafe.Pointer) {

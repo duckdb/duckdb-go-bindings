@@ -17,12 +17,7 @@ func CreateErrorData(t ErrorType, msg string) ErrorData {
 	defer Free(unsafe.Pointer(cMsg))
 
 	errorData := C.duckdb_create_error_data(t, cMsg)
-	if debugMode {
-		incrAllocCount("errorData")
-	}
-	return ErrorData{
-		Ptr: unsafe.Pointer(errorData),
-	}
+	return trackedErrorData(errorData)
 }
 
 // DestroyErrorData wraps duckdb_destroy_error_data.
@@ -30,9 +25,7 @@ func DestroyErrorData(errorData *ErrorData) {
 	if errorData.Ptr == nil {
 		return
 	}
-	if debugMode {
-		decrAllocCount("errorData")
-	}
+	releaseAllocation(errorDataAllocation, errorData.Ptr)
 	data := errorData.data()
 	C.duckdb_destroy_error_data(&data)
 	errorData.Ptr = nil

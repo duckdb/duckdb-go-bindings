@@ -18,12 +18,7 @@ func VectorSize() IdxT {
 // The return value must be destroyed with DestroyVector.
 func CreateVector(logicalType LogicalType, capacity IdxT) Vector {
 	vec := C.duckdb_create_vector(logicalType.data(), capacity)
-	if debugMode {
-		incrAllocCount("vec")
-	}
-	return Vector{
-		Ptr: unsafe.Pointer(vec),
-	}
+	return trackedVector(vec)
 }
 
 // DestroyVector wraps duckdb_destroy_vector.
@@ -31,9 +26,7 @@ func DestroyVector(vec *Vector) {
 	if vec.Ptr == nil {
 		return
 	}
-	if debugMode {
-		decrAllocCount("vec")
-	}
+	releaseAllocation(vectorAllocation, vec.Ptr)
 	data := vec.data()
 	C.duckdb_destroy_vector(&data)
 	vec.Ptr = nil
@@ -43,12 +36,7 @@ func DestroyVector(vec *Vector) {
 // The return value must be destroyed with DestroyLogicalType.
 func VectorGetColumnType(vec Vector) LogicalType {
 	logicalType := C.duckdb_vector_get_column_type(vec.data())
-	if debugMode {
-		incrAllocCount("logicalType")
-	}
-	return LogicalType{
-		Ptr: unsafe.Pointer(logicalType),
-	}
+	return trackedLogicalType(logicalType)
 }
 
 func VectorGetData(vec Vector) unsafe.Pointer {

@@ -24,24 +24,14 @@ func ProfilingInfoGetValue(info ProfilingInfo, key string) Value {
 	defer Free(unsafe.Pointer(cKey))
 	v := C.duckdb_profiling_info_get_value(info.data(), cKey)
 
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // ProfilingInfoGetMetrics wraps duckdb_profiling_info_get_metrics.
 // The return value must be destroyed with DestroyValue.
 func ProfilingInfoGetMetrics(info ProfilingInfo) Value {
 	v := C.duckdb_profiling_info_get_metrics(info.data())
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 func ProfilingInfoGetChildCount(info ProfilingInfo) IdxT {

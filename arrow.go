@@ -83,10 +83,7 @@ func NewArrowSchema(options ArrowOptions, types []LogicalType, names []string) (
 	}()
 
 	ed := C.duckdb_to_arrow_schema(options.data(), cTypes, cNames.arr, C.idx_t(len(names)), (*C.struct_ArrowSchema)(arr))
-	errData := ErrorData{Ptr: unsafe.Pointer(ed)}
-	if debugMode && ed != nil {
-		incrAllocCount("errorData")
-	}
+	errData := trackedErrorData(ed)
 	if ErrorDataHasError(errData) {
 		return nil, errData
 	}
@@ -108,10 +105,7 @@ func DataChunkToArrowArray(options ArrowOptions, schema *arrow.Schema, chunk Dat
 	}()
 
 	ed := C.duckdb_data_chunk_to_arrow(options.data(), chunk.data(), (*C.struct_ArrowArray)(arr))
-	errData := ErrorData{Ptr: unsafe.Pointer(ed)}
-	if debugMode && ed != nil {
-		incrAllocCount("errorData")
-	}
+	errData := trackedErrorData(ed)
 	if ErrorDataHasError(errData) {
 		return nil, errData
 	}
@@ -135,14 +129,8 @@ func SchemaFromArrow(conn Connection, schema *arrow.Schema) (ArrowConvertedSchem
 
 	var convertedSchema C.duckdb_arrow_converted_schema
 	ed := C.duckdb_schema_from_arrow(conn.data(), (*C.struct_ArrowSchema)(arr), &convertedSchema)
-	errData := ErrorData{Ptr: unsafe.Pointer(ed)}
-	if debugMode && ed != nil {
-		incrAllocCount("errorData")
-	}
-	if debugMode && convertedSchema != nil {
-		incrAllocCount("arrowConvertedSchema")
-	}
-	return ArrowConvertedSchema{Ptr: unsafe.Pointer(convertedSchema)}, errData
+	errData := trackedErrorData(ed)
+	return trackedArrowConvertedSchema(convertedSchema), errData
 }
 
 // DataChunkFromArrow converts an Arrow RecordBatch to a DuckDB DataChunk using the provided Connection and ArrowConvertedSchema.
@@ -163,14 +151,8 @@ func DataChunkFromArrow(conn Connection, rec arrow.RecordBatch, schema ArrowConv
 
 	var chunk C.duckdb_data_chunk
 	ed := C.duckdb_data_chunk_from_arrow(conn.data(), (*C.struct_ArrowArray)(arr), schema.data(), &chunk)
-	errData := ErrorData{Ptr: unsafe.Pointer(ed)}
-	if debugMode && ed != nil {
-		incrAllocCount("errorData")
-	}
-	if debugMode && chunk != nil {
-		incrAllocCount("chunk")
-	}
-	return DataChunk{Ptr: unsafe.Pointer(chunk)}, errData
+	errData := trackedErrorData(ed)
+	return trackedDataChunk(chunk), errData
 }
 
 // DestroyArrowConvertedSchema wraps duckdb_destroy_arrow_converted_schema.
@@ -178,9 +160,7 @@ func DestroyArrowConvertedSchema(schema *ArrowConvertedSchema) {
 	if schema.Ptr == nil {
 		return
 	}
-	if debugMode {
-		decrAllocCount("arrowConvertedSchema")
-	}
+	releaseAllocation(arrowConvertedSchemaAllocation, schema.Ptr)
 	data := schema.data()
 	C.duckdb_destroy_arrow_converted_schema(&data)
 	schema.Ptr = nil
@@ -213,9 +193,7 @@ func DestroyArrow(arrow *Arrow) {
 	if arrow.Ptr == nil {
 		return
 	}
-	if debugMode {
-		decrAllocCount("arrow")
-	}
+	releaseAllocation(arrowAllocation, arrow.Ptr)
 	data := arrow.data()
 	C.duckdb_destroy_arrow(&data)
 	arrow.Ptr = nil
@@ -227,10 +205,7 @@ func DestroyArrow(arrow *Arrow) {
 func ExecutePreparedArrow(preparedStmt PreparedStatement, outArrow *Arrow) State {
 	var arrow C.duckdb_arrow
 	state := C.duckdb_execute_prepared_arrow(preparedStmt.data(), &arrow)
-	outArrow.Ptr = unsafe.Pointer(arrow)
-	if debugMode {
-		incrAllocCount("arrow")
-	}
+	*outArrow = trackedArrow(arrow)
 	return state
 }
 

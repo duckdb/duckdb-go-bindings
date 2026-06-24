@@ -15,9 +15,7 @@ func DestroyValue(v *Value) {
 	if v.Ptr == nil {
 		return
 	}
-	if debugMode {
-		decrAllocCount("v")
-	}
+	releaseAllocation(valueAllocation, v.Ptr)
 	data := v.data()
 	C.duckdb_destroy_value(&data)
 	v.Ptr = nil
@@ -37,12 +35,7 @@ func CreateVarcharLength(str string, length IdxT) Value {
 		cStr = (*C.char)(unsafe.Pointer(unsafe.StringData(str)))
 	}
 	v := C.duckdb_create_varchar_length(cStr, length)
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 func ValidUtf8Check(blob []byte) ErrorData {
@@ -51,312 +44,182 @@ func ValidUtf8Check(blob []byte) ErrorData {
 		blobPtr = (*C.char)(unsafe.Pointer(&blob[0]))
 	}
 	errorData := C.duckdb_valid_utf8_check(blobPtr, IdxT(len(blob)))
-	if debugMode {
-		incrAllocCount("errorData")
-	}
-	return ErrorData{
-		Ptr: unsafe.Pointer(errorData),
-	}
+	return trackedErrorData(errorData)
 }
 
 // CreateBool wraps duckdb_create_bool.
 // The return value must be destroyed with DestroyValue.
 func CreateBool(val bool) Value {
 	v := C.duckdb_create_bool(C.bool(val))
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateInt8 wraps duckdb_create_int8.
 // The return value must be destroyed with DestroyValue.
 func CreateInt8(val int8) Value {
 	v := C.duckdb_create_int8(C.int8_t(val))
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateUInt8 wraps duckdb_create_uint8.
 // The return value must be destroyed with DestroyValue.
 func CreateUInt8(val uint8) Value {
 	v := C.duckdb_create_uint8(C.uint8_t(val))
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateInt16 wraps duckdb_create_int16.
 // The return value must be destroyed with DestroyValue.
 func CreateInt16(val int16) Value {
 	v := C.duckdb_create_int16(C.int16_t(val))
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateUInt16 wraps duckdb_create_uint16.
 // The return value must be destroyed with DestroyValue.
 func CreateUInt16(val uint16) Value {
 	v := C.duckdb_create_uint16(C.uint16_t(val))
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateInt32 wraps duckdb_create_int32.
 // The return value must be destroyed with DestroyValue.
 func CreateInt32(val int32) Value {
 	v := C.duckdb_create_int32(C.int32_t(val))
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateUInt32 wraps duckdb_create_uint32.
 // The return value must be destroyed with DestroyValue.
 func CreateUInt32(val uint32) Value {
 	v := C.duckdb_create_uint32(C.uint32_t(val))
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateUInt64 wraps duckdb_create_uint64.
 // The return value must be destroyed with DestroyValue.
 func CreateUInt64(val uint64) Value {
 	v := C.duckdb_create_uint64(C.uint64_t(val))
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateInt64 wraps duckdb_create_int64.
 // The return value must be destroyed with DestroyValue.
 func CreateInt64(val int64) Value {
 	v := C.duckdb_create_int64(C.int64_t(val))
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateHugeInt wraps duckdb_create_hugeint.
 // The return value must be destroyed with DestroyValue.
 func CreateHugeInt(val HugeInt) Value {
 	v := C.duckdb_create_hugeint(val)
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateUHugeInt wraps duckdb_create_uhugeint.
 // The return value must be destroyed with DestroyValue.
 func CreateUHugeInt(val UHugeInt) Value {
 	v := C.duckdb_create_uhugeint(val)
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateBigNum wraps duckdb_create_bignum.
 // The return value must be destroyed with DestroyValue.
 func CreateBigNum(val BigNum) Value {
 	v := C.duckdb_create_bignum(val)
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateDecimal wraps duckdb_create_decimal.
 // The return value must be destroyed with DestroyValue.
 func CreateDecimal(val Decimal) Value {
 	v := C.duckdb_create_decimal(val)
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateFloat wraps duckdb_create_float.
 // The return value must be destroyed with DestroyValue.
 func CreateFloat(val float32) Value {
 	v := C.duckdb_create_float(C.float(val))
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateDouble wraps duckdb_create_double.
 // The return value must be destroyed with DestroyValue.
 func CreateDouble(val float64) Value {
 	v := C.duckdb_create_double(C.double(val))
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateDate wraps duckdb_create_date.
 // The return value must be destroyed with DestroyValue.
 func CreateDate(val Date) Value {
 	v := C.duckdb_create_date(val)
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateTime wraps duckdb_create_time.
 // The return value must be destroyed with DestroyValue.
 func CreateTime(val Time) Value {
 	v := C.duckdb_create_time(val)
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateTimeNS wraps duckdb_create_time_ns.
 // The return value must be destroyed with DestroyValue.
 func CreateTimeNS(val TimeNS) Value {
 	v := C.duckdb_create_time_ns(val)
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateTimeTZValue wraps duckdb_create_time_tz_value.
 // The return value must be destroyed with DestroyValue.
 func CreateTimeTZValue(timeTZ TimeTZ) Value {
 	v := C.duckdb_create_time_tz_value(timeTZ)
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateTimestamp wraps duckdb_create_timestamp.
 // The return value must be destroyed with DestroyValue.
 func CreateTimestamp(val Timestamp) Value {
 	v := C.duckdb_create_timestamp(val)
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateTimestampTZ wraps duckdb_create_timestamp_tz.
 // The return value must be destroyed with DestroyValue.
 func CreateTimestampTZ(val Timestamp) Value {
 	v := C.duckdb_create_timestamp_tz(val)
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateTimestampS wraps duckdb_create_timestamp_s.
 // The return value must be destroyed with DestroyValue.
 func CreateTimestampS(val TimestampS) Value {
 	v := C.duckdb_create_timestamp_s(val)
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateTimestampMS wraps duckdb_create_timestamp_ms.
 // The return value must be destroyed with DestroyValue.
 func CreateTimestampMS(val TimestampMS) Value {
 	v := C.duckdb_create_timestamp_ms(val)
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateTimestampNS wraps duckdb_create_timestamp_ns.
 // The return value must be destroyed with DestroyValue.
 func CreateTimestampNS(val TimestampNS) Value {
 	v := C.duckdb_create_timestamp_ns(val)
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateInterval wraps duckdb_create_interval.
 // The return value must be destroyed with DestroyValue.
 func CreateInterval(val Interval) Value {
 	v := C.duckdb_create_interval(val)
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateBlob wraps duckdb_create_blob.
@@ -368,36 +231,21 @@ func CreateBlob(val []byte) Value {
 	}
 
 	v := C.duckdb_create_blob(data, IdxT(len(val)))
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateBit wraps duckdb_create_bit.
 // The return value must be destroyed with DestroyValue.
 func CreateBit(val Bit) Value {
 	v := C.duckdb_create_bit(val)
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateUUID wraps duckdb_create_uuid.
 // The return value must be destroyed with DestroyValue.
 func CreateUUID(val UHugeInt) Value {
 	v := C.duckdb_create_uuid(val)
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 func GetBool(v Value) bool {
@@ -456,10 +304,8 @@ func GetUHugeInt(v Value) UHugeInt {
 // GetBigNum wraps duckdb_get_bignum.
 // The return value must be destroyed with DestroyBigNum.
 func GetBigNum(v Value) BigNum {
-	if debugMode {
-		incrAllocCount("bigNum")
-	}
-	return C.duckdb_get_bignum(v.data())
+	bigNum := C.duckdb_get_bignum(v.data())
+	return trackedBigNum(bigNum)
 }
 
 func GetDecimal(v Value) Decimal {
@@ -528,19 +374,15 @@ func GetValueType(v Value) LogicalType {
 // GetBlob wraps duckdb_get_blob.
 // The return value must be destroyed with DestroyBlob.
 func GetBlob(v Value) Blob {
-	if debugMode {
-		incrAllocCount("blob")
-	}
-	return C.duckdb_get_blob(v.data())
+	blob := C.duckdb_get_blob(v.data())
+	return trackedBlob(blob)
 }
 
 // GetBit wraps duckdb_get_bit.
 // The return value must be destroyed with DestroyBit.
 func GetBit(v Value) Bit {
-	if debugMode {
-		incrAllocCount("bit")
-	}
-	return C.duckdb_get_bit(v.data())
+	bit := C.duckdb_get_bit(v.data())
+	return trackedBit(bit)
 }
 
 func GetUUID(v Value) UHugeInt {
@@ -560,14 +402,7 @@ func CreateStructValue(logicalType LogicalType, values []Value) Value {
 	defer Free(unsafe.Pointer(valuesPtr))
 
 	v := C.duckdb_create_struct_value(logicalType.data(), valuesPtr)
-
-	if debugMode {
-		incrAllocCount("v")
-	}
-
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateListValue wraps duckdb_create_list_value.
@@ -577,14 +412,7 @@ func CreateListValue(logicalType LogicalType, values []Value) Value {
 	defer Free(unsafe.Pointer(valuesPtr))
 
 	v := C.duckdb_create_list_value(logicalType.data(), valuesPtr, IdxT(len(values)))
-
-	if debugMode {
-		incrAllocCount("v")
-	}
-
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateArrayValue wraps duckdb_create_array_value.
@@ -594,14 +422,7 @@ func CreateArrayValue(logicalType LogicalType, values []Value) Value {
 	defer Free(unsafe.Pointer(valuesPtr))
 
 	v := C.duckdb_create_array_value(logicalType.data(), valuesPtr, IdxT(len(values)))
-
-	if debugMode {
-		incrAllocCount("v")
-	}
-
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateMapValue wraps duckdb_create_map_value.
@@ -614,26 +435,14 @@ func CreateMapValue(logicalType LogicalType, keys []Value, values []Value) Value
 	defer Free(unsafe.Pointer(valueValuesPtr))
 
 	m := C.duckdb_create_map_value(logicalType.data(), keyValuesPtr, valueValuesPtr, IdxT(len(keys)))
-
-	if debugMode {
-		incrAllocCount("v")
-	}
-
-	return Value{
-		Ptr: unsafe.Pointer(m),
-	}
+	return trackedValue(m)
 }
 
 // CreateUnionValue wraps duckdb_create_union_value.
 // The return value must be destroyed with DestroyValue.
 func CreateUnionValue(logicalType LogicalType, tag IdxT, value Value) Value {
 	v := C.duckdb_create_union_value(logicalType.data(), tag, value.data())
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 func GetMapSize(v Value) IdxT {
@@ -644,24 +453,14 @@ func GetMapSize(v Value) IdxT {
 // The return value must be destroyed with DestroyValue.
 func GetMapKey(v Value, index IdxT) Value {
 	value := C.duckdb_get_map_key(v.data(), index)
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(value),
-	}
+	return trackedValue(value)
 }
 
 // GetMapValue wraps duckdb_get_map_value.
 // The return value must be destroyed with DestroyValue.
 func GetMapValue(v Value, index IdxT) Value {
 	value := C.duckdb_get_map_value(v.data(), index)
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(value),
-	}
+	return trackedValue(value)
 }
 
 func IsNullValue(v Value) bool {
@@ -672,12 +471,7 @@ func IsNullValue(v Value) bool {
 // The return value must be destroyed with DestroyValue.
 func CreateNullValue() Value {
 	v := C.duckdb_create_null_value()
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 func GetListSize(v Value) IdxT {
@@ -688,24 +482,14 @@ func GetListSize(v Value) IdxT {
 // The return value must be destroyed with DestroyValue.
 func GetListChild(val Value, index IdxT) Value {
 	v := C.duckdb_get_list_child(val.data(), index)
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 // CreateEnumValue wraps duckdb_create_enum_value.
 // The return value must be destroyed with DestroyValue.
 func CreateEnumValue(logicalType LogicalType, val uint64) Value {
 	v := C.duckdb_create_enum_value(logicalType.data(), C.uint64_t(val))
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 func GetEnumValue(v Value) uint64 {
@@ -716,12 +500,7 @@ func GetEnumValue(v Value) uint64 {
 // The return value must be destroyed with DestroyValue.
 func GetStructChild(val Value, index IdxT) Value {
 	v := C.duckdb_get_struct_child(val.data(), index)
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return trackedValue(v)
 }
 
 func ValueToString(val Value) string {

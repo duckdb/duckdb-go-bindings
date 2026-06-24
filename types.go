@@ -294,15 +294,12 @@ func ListEntryMembers(entry *ListEntry) (uint64, uint64) {
 // The data is stored in little endian format (absolute value).
 // The returned BigNum must be destroyed with DestroyBigNum.
 func NewBigNum(data []byte, isNegative bool) BigNum {
-	if debugMode {
-		incrAllocCount("bigNum")
-	}
 	cData := (*C.uint8_t)(C.CBytes(data))
-	return BigNum{
+	return trackedBigNum(BigNum{
 		data:        cData,
 		size:        C.idx_t(len(data)),
 		is_negative: C.bool(isNegative),
-	}
+	})
 }
 
 // BigNumMembers returns the data bytes and sign of a BigNum.
@@ -318,14 +315,11 @@ func BigNumMembers(bn *BigNum) ([]byte, bool) {
 // The first byte contains the number of padding bits.
 // The padding bits of the second byte are set to 1, starting from the MSB.
 func NewBit(data []byte) Bit {
-	if debugMode {
-		incrAllocCount("bit")
-	}
 	cData := (*C.uint8_t)(C.CBytes(data))
-	return Bit{
+	return trackedBit(Bit{
 		data: cData,
 		size: C.idx_t(len(data)),
-	}
+	})
 }
 
 // BitMembers returns the data bytes of a Bit.
@@ -340,35 +334,32 @@ func BitMembers(b *Bit) []byte {
 
 // DestroyBlob destroys the data field of duckdb_blob.
 func DestroyBlob(b *Blob) {
-	if b == nil {
+	if b == nil || b.data == nil {
 		return
 	}
-	if debugMode {
-		decrAllocCount("blob")
-	}
+	releaseAllocation(blobAllocation, b.data)
 	Free(b.data)
+	b.data = nil
 }
 
 // DestroyBit destroys the data field of duckdb_bit.
 func DestroyBit(b *Bit) {
-	if b == nil {
+	if b == nil || b.data == nil {
 		return
 	}
-	if debugMode {
-		decrAllocCount("bit")
-	}
+	releaseAllocation(bitAllocation, unsafe.Pointer(b.data))
 	Free(unsafe.Pointer(b.data))
+	b.data = nil
 }
 
 // DestroyBigNum destroys the data field of duckdb_bignum.
 func DestroyBigNum(i *BigNum) {
-	if i == nil {
+	if i == nil || i.data == nil {
 		return
 	}
-	if debugMode {
-		decrAllocCount("bigNum")
-	}
+	releaseAllocation(bigNumAllocation, unsafe.Pointer(i.data))
 	Free(unsafe.Pointer(i.data))
+	i.data = nil
 }
 
 func FromDate(date Date) DateStruct {

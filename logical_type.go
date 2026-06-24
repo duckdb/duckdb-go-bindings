@@ -14,12 +14,7 @@ import "unsafe"
 // The return value must be destroyed with DestroyLogicalType.
 func CreateLogicalType(t Type) LogicalType {
 	logicalType := C.duckdb_create_logical_type(t)
-	if debugMode {
-		incrAllocCount("logicalType")
-	}
-	return LogicalType{
-		Ptr: unsafe.Pointer(logicalType),
-	}
+	return trackedLogicalType(logicalType)
 }
 
 func LogicalTypeGetAlias(logicalType LogicalType) string {
@@ -38,36 +33,21 @@ func LogicalTypeSetAlias(logicalType LogicalType, alias string) {
 // The return value must be destroyed with DestroyLogicalType.
 func CreateListType(child LogicalType) LogicalType {
 	logicalType := C.duckdb_create_list_type(child.data())
-	if debugMode {
-		incrAllocCount("logicalType")
-	}
-	return LogicalType{
-		Ptr: unsafe.Pointer(logicalType),
-	}
+	return trackedLogicalType(logicalType)
 }
 
 // CreateArrayType wraps duckdb_create_array_type.
 // The return value must be destroyed with DestroyLogicalType.
 func CreateArrayType(child LogicalType, size IdxT) LogicalType {
 	logicalType := C.duckdb_create_array_type(child.data(), size)
-	if debugMode {
-		incrAllocCount("logicalType")
-	}
-	return LogicalType{
-		Ptr: unsafe.Pointer(logicalType),
-	}
+	return trackedLogicalType(logicalType)
 }
 
 // CreateMapType wraps duckdb_create_map_type.
 // The return value must be destroyed with DestroyLogicalType.
 func CreateMapType(key LogicalType, value LogicalType) LogicalType {
 	logicalType := C.duckdb_create_map_type(key.data(), value.data())
-	if debugMode {
-		incrAllocCount("logicalType")
-	}
-	return LogicalType{
-		Ptr: unsafe.Pointer(logicalType),
-	}
+	return trackedLogicalType(logicalType)
 }
 
 // CreateUnionType wraps duckdb_create_union_type.
@@ -83,12 +63,7 @@ func CreateUnionType(types []LogicalType, names []string) LogicalType {
 	// Create the UNION type.
 	logicalType := C.duckdb_create_union_type(typesPtr, namesAlloc.arr, count)
 
-	if debugMode {
-		incrAllocCount("logicalType")
-	}
-	return LogicalType{
-		Ptr: unsafe.Pointer(logicalType),
-	}
+	return trackedLogicalType(logicalType)
 }
 
 // CreateStructType wraps duckdb_create_struct_type.
@@ -104,12 +79,7 @@ func CreateStructType(types []LogicalType, names []string) LogicalType {
 	// Create the STRUCT type.
 	logicalType := C.duckdb_create_struct_type(typesPtr, namesAlloc.arr, count)
 
-	if debugMode {
-		incrAllocCount("logicalType")
-	}
-	return LogicalType{
-		Ptr: unsafe.Pointer(logicalType),
-	}
+	return trackedLogicalType(logicalType)
 }
 
 // CreateEnumType wraps duckdb_create_enum_type.
@@ -122,24 +92,14 @@ func CreateEnumType(names []string) LogicalType {
 	// Create the ENUM type.
 	logicalType := C.duckdb_create_enum_type(namesAlloc.arr, count)
 
-	if debugMode {
-		incrAllocCount("logicalType")
-	}
-	return LogicalType{
-		Ptr: unsafe.Pointer(logicalType),
-	}
+	return trackedLogicalType(logicalType)
 }
 
 // CreateDecimalType wraps duckdb_create_decimal_type.
 // The return value must be destroyed with DestroyLogicalType.
 func CreateDecimalType(width uint8, scale uint8) LogicalType {
 	logicalType := C.duckdb_create_decimal_type(C.uint8_t(width), C.uint8_t(scale))
-	if debugMode {
-		incrAllocCount("logicalType")
-	}
-	return LogicalType{
-		Ptr: unsafe.Pointer(logicalType),
-	}
+	return trackedLogicalType(logicalType)
 }
 
 func GetTypeId(logicalType LogicalType) Type {
@@ -179,24 +139,14 @@ func EnumDictionaryValue(logicalType LogicalType, index IdxT) string {
 // The return value must be destroyed with DestroyLogicalType.
 func ListTypeChildType(logicalType LogicalType) LogicalType {
 	child := C.duckdb_list_type_child_type(logicalType.data())
-	if debugMode {
-		incrAllocCount("logicalType")
-	}
-	return LogicalType{
-		Ptr: unsafe.Pointer(child),
-	}
+	return trackedLogicalType(child)
 }
 
 // ArrayTypeChildType wraps duckdb_array_type_child_type.
 // The return value must be destroyed with DestroyLogicalType.
 func ArrayTypeChildType(logicalType LogicalType) LogicalType {
 	child := C.duckdb_array_type_child_type(logicalType.data())
-	if debugMode {
-		incrAllocCount("logicalType")
-	}
-	return LogicalType{
-		Ptr: unsafe.Pointer(child),
-	}
+	return trackedLogicalType(child)
 }
 
 func ArrayTypeArraySize(logicalType LogicalType) IdxT {
@@ -207,24 +157,14 @@ func ArrayTypeArraySize(logicalType LogicalType) IdxT {
 // The return value must be destroyed with DestroyLogicalType.
 func MapTypeKeyType(logicalType LogicalType) LogicalType {
 	key := C.duckdb_map_type_key_type(logicalType.data())
-	if debugMode {
-		incrAllocCount("logicalType")
-	}
-	return LogicalType{
-		Ptr: unsafe.Pointer(key),
-	}
+	return trackedLogicalType(key)
 }
 
 // MapTypeValueType wraps duckdb_map_type_value_type.
 // The return value must be destroyed with DestroyLogicalType.
 func MapTypeValueType(logicalType LogicalType) LogicalType {
 	value := C.duckdb_map_type_value_type(logicalType.data())
-	if debugMode {
-		incrAllocCount("logicalType")
-	}
-	return LogicalType{
-		Ptr: unsafe.Pointer(value),
-	}
+	return trackedLogicalType(value)
 }
 
 func StructTypeChildCount(logicalType LogicalType) IdxT {
@@ -241,12 +181,7 @@ func StructTypeChildName(logicalType LogicalType, index IdxT) string {
 // The return value must be destroyed with DestroyLogicalType.
 func StructTypeChildType(logicalType LogicalType, index IdxT) LogicalType {
 	child := C.duckdb_struct_type_child_type(logicalType.data(), index)
-	if debugMode {
-		incrAllocCount("logicalType")
-	}
-	return LogicalType{
-		Ptr: unsafe.Pointer(child),
-	}
+	return trackedLogicalType(child)
 }
 
 func UnionTypeMemberCount(logicalType LogicalType) IdxT {
@@ -263,12 +198,7 @@ func UnionTypeMemberName(logicalType LogicalType, index IdxT) string {
 // The return value must be destroyed with DestroyLogicalType.
 func UnionTypeMemberType(logicalType LogicalType, index IdxT) LogicalType {
 	t := C.duckdb_union_type_member_type(logicalType.data(), index)
-	if debugMode {
-		incrAllocCount("logicalType")
-	}
-	return LogicalType{
-		Ptr: unsafe.Pointer(t),
-	}
+	return trackedLogicalType(t)
 }
 
 func GeometryTypeGetCRS(logicalType LogicalType) string {
@@ -285,9 +215,7 @@ func DestroyLogicalType(logicalType *LogicalType) {
 	if logicalType.Ptr == nil {
 		return
 	}
-	if debugMode {
-		decrAllocCount("logicalType")
-	}
+	releaseAllocation(logicalTypeAllocation, logicalType.Ptr)
 	data := logicalType.data()
 	C.duckdb_destroy_logical_type(&data)
 	logicalType.Ptr = nil

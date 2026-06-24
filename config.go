@@ -15,10 +15,7 @@ import "unsafe"
 func CreateConfig(outConfig *Config) State {
 	var config C.duckdb_config
 	state := C.duckdb_create_config(&config)
-	outConfig.Ptr = unsafe.Pointer(config)
-	if debugMode {
-		incrAllocCount("config")
-	}
+	*outConfig = trackedConfig(config)
 	return state
 }
 
@@ -49,9 +46,7 @@ func DestroyConfig(config *Config) {
 	if config.Ptr == nil {
 		return
 	}
-	if debugMode {
-		decrAllocCount("config")
-	}
+	releaseAllocation(configAllocation, config.Ptr)
 	data := config.data()
 	C.duckdb_destroy_config(&data)
 	config.Ptr = nil
