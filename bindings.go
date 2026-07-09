@@ -1353,9 +1353,11 @@ func StringTData(strT *StringT) string {
 }
 
 func ValidUtf8Check(blob []byte) ErrorData {
-	cBytes := (*C.char)(C.CBytes(blob))
-	defer Free(unsafe.Pointer(cBytes))
-	errorData := C.duckdb_valid_utf8_check(cBytes, IdxT(len(blob)))
+	var blobPtr *C.char
+	if len(blob) > 0 {
+		blobPtr = (*C.char)(unsafe.Pointer(&blob[0]))
+	}
+	errorData := C.duckdb_valid_utf8_check(blobPtr, IdxT(len(blob)))
 	if debugMode {
 		incrAllocCount("errorData")
 	}
@@ -1644,21 +1646,23 @@ func BindInterval(preparedStmt PreparedStatement, index IdxT, v Interval) State 
 }
 
 func BindVarchar(preparedStmt PreparedStatement, index IdxT, v string) State {
-	cStr := C.CString(v)
-	defer Free(unsafe.Pointer(cStr))
-	return C.duckdb_bind_varchar(preparedStmt.data(), index, cStr)
+	return BindVarcharLength(preparedStmt, index, v, IdxT(len(v)))
 }
 
 func BindVarcharLength(preparedStmt PreparedStatement, index IdxT, v string, length IdxT) State {
-	cStr := C.CString(v)
-	defer Free(unsafe.Pointer(cStr))
+	var cStr *C.char
+	if length > 0 {
+		cStr = (*C.char)(unsafe.Pointer(unsafe.StringData(v)))
+	}
 	return C.duckdb_bind_varchar_length(preparedStmt.data(), index, cStr, length)
 }
 
 func BindBlob(preparedStmt PreparedStatement, index IdxT, v []byte) State {
-	cBytes := C.CBytes(v)
-	defer Free(cBytes)
-	return C.duckdb_bind_blob(preparedStmt.data(), index, cBytes, IdxT(len(v)))
+	var data unsafe.Pointer
+	if len(v) > 0 {
+		data = unsafe.Pointer(&v[0])
+	}
+	return C.duckdb_bind_blob(preparedStmt.data(), index, data, IdxT(len(v)))
 }
 
 func BindNull(preparedStmt PreparedStatement, index IdxT) State {
@@ -1822,25 +1826,19 @@ func DestroyValue(v *Value) {
 	v.Ptr = nil
 }
 
-// CreateVarchar wraps duckdb_create_varchar.
+// CreateVarchar wraps duckdb_create_varchar_length using the full string length.
 // The return value must be destroyed with DestroyValue.
 func CreateVarchar(str string) Value {
-	cStr := C.CString(str)
-	defer Free(unsafe.Pointer(cStr))
-	v := C.duckdb_create_varchar(cStr)
-	if debugMode {
-		incrAllocCount("v")
-	}
-	return Value{
-		Ptr: unsafe.Pointer(v),
-	}
+	return CreateVarcharLength(str, IdxT(len(str)))
 }
 
 // CreateVarcharLength wraps duckdb_create_varchar_length.
 // The return value must be destroyed with DestroyValue.
 func CreateVarcharLength(str string, length IdxT) Value {
-	cStr := C.CString(str)
-	defer Free(unsafe.Pointer(cStr))
+	var cStr *C.char
+	if length > 0 {
+		cStr = (*C.char)(unsafe.Pointer(unsafe.StringData(str)))
+	}
 	v := C.duckdb_create_varchar_length(cStr, length)
 	if debugMode {
 		incrAllocCount("v")
@@ -2153,10 +2151,12 @@ func CreateInterval(val Interval) Value {
 // CreateBlob wraps duckdb_create_blob.
 // The return value must be destroyed with DestroyValue.
 func CreateBlob(val []byte) Value {
-	cBytes := (*C.uint8_t)(C.CBytes(val))
-	defer Free(unsafe.Pointer(cBytes))
+	var data *C.uint8_t
+	if len(val) > 0 {
+		data = (*C.uint8_t)(unsafe.Pointer(&val[0]))
+	}
 
-	v := C.duckdb_create_blob(cBytes, IdxT(len(val)))
+	v := C.duckdb_create_blob(data, IdxT(len(val)))
 	if debugMode {
 		incrAllocCount("v")
 	}
@@ -2921,21 +2921,28 @@ func VectorEnsureValidityWritable(vec Vector) {
 }
 
 func VectorAssignStringElement(vec Vector, index IdxT, str string) {
-	cStr := C.CString(str)
-	defer Free(unsafe.Pointer(cStr))
-	C.duckdb_vector_assign_string_element(vec.data(), index, cStr)
+	var cStr *C.char
+	n := IdxT(len(str))
+	if n > 0 {
+		cStr = (*C.char)(unsafe.Pointer(unsafe.StringData(str)))
+	}
+	C.duckdb_vector_assign_string_element_len(vec.data(), index, cStr, n)
 }
 
 func VectorAssignStringElementLen(vec Vector, index IdxT, blob []byte) {
-	cBytes := (*C.char)(C.CBytes(blob))
-	defer Free(unsafe.Pointer(cBytes))
-	C.duckdb_vector_assign_string_element_len(vec.data(), index, cBytes, IdxT(len(blob)))
+	var blobPtr *C.char
+	if len(blob) > 0 {
+		blobPtr = (*C.char)(unsafe.Pointer(&blob[0]))
+	}
+	C.duckdb_vector_assign_string_element_len(vec.data(), index, blobPtr, IdxT(len(blob)))
 }
 
 func UnsafeVectorAssignStringElementLen(vec Vector, index IdxT, blob []byte) {
-	cBytes := (*C.char)(C.CBytes(blob))
-	defer Free(unsafe.Pointer(cBytes))
-	C.duckdb_unsafe_vector_assign_string_element_len(vec.data(), index, cBytes, IdxT(len(blob)))
+	var blobPtr *C.char
+	if len(blob) > 0 {
+		blobPtr = (*C.char)(unsafe.Pointer(&blob[0]))
+	}
+	C.duckdb_unsafe_vector_assign_string_element_len(vec.data(), index, blobPtr, IdxT(len(blob)))
 }
 
 func ListVectorGetChild(vec Vector) Vector {
