@@ -88,34 +88,37 @@ const (
 type StatementType = C.duckdb_statement_type
 
 const (
-	StatementTypeInvalid     StatementType = C.DUCKDB_STATEMENT_TYPE_INVALID
-	StatementTypeSelect      StatementType = C.DUCKDB_STATEMENT_TYPE_SELECT
-	StatementTypeInsert      StatementType = C.DUCKDB_STATEMENT_TYPE_INSERT
-	StatementTypeUpdate      StatementType = C.DUCKDB_STATEMENT_TYPE_UPDATE
-	StatementTypeExplain     StatementType = C.DUCKDB_STATEMENT_TYPE_EXPLAIN
-	StatementTypeDelete      StatementType = C.DUCKDB_STATEMENT_TYPE_DELETE
-	StatementTypePrepare     StatementType = C.DUCKDB_STATEMENT_TYPE_PREPARE
-	StatementTypeCreate      StatementType = C.DUCKDB_STATEMENT_TYPE_CREATE
-	StatementTypeExecute     StatementType = C.DUCKDB_STATEMENT_TYPE_EXECUTE
-	StatementTypeAlter       StatementType = C.DUCKDB_STATEMENT_TYPE_ALTER
-	StatementTypeTransaction StatementType = C.DUCKDB_STATEMENT_TYPE_TRANSACTION
-	StatementTypeCopy        StatementType = C.DUCKDB_STATEMENT_TYPE_COPY
-	StatementTypeAnalyze     StatementType = C.DUCKDB_STATEMENT_TYPE_ANALYZE
-	StatementTypeVariableSet StatementType = C.DUCKDB_STATEMENT_TYPE_VARIABLE_SET
-	StatementTypeCreateFunc  StatementType = C.DUCKDB_STATEMENT_TYPE_CREATE_FUNC
-	StatementTypeDrop        StatementType = C.DUCKDB_STATEMENT_TYPE_DROP
-	StatementTypeExport      StatementType = C.DUCKDB_STATEMENT_TYPE_EXPORT
-	StatementTypePragma      StatementType = C.DUCKDB_STATEMENT_TYPE_PRAGMA
-	StatementTypeVacuum      StatementType = C.DUCKDB_STATEMENT_TYPE_VACUUM
-	StatementTypeCall        StatementType = C.DUCKDB_STATEMENT_TYPE_CALL
-	StatementTypeSet         StatementType = C.DUCKDB_STATEMENT_TYPE_SET
-	StatementTypeLoad        StatementType = C.DUCKDB_STATEMENT_TYPE_LOAD
-	StatementTypeRelation    StatementType = C.DUCKDB_STATEMENT_TYPE_RELATION
-	StatementTypeExtension   StatementType = C.DUCKDB_STATEMENT_TYPE_EXTENSION
-	StatementTypeLogicalPlan StatementType = C.DUCKDB_STATEMENT_TYPE_LOGICAL_PLAN
-	StatementTypeAttach      StatementType = C.DUCKDB_STATEMENT_TYPE_ATTACH
-	StatementTypeDetach      StatementType = C.DUCKDB_STATEMENT_TYPE_DETACH
-	StatementTypeMulti       StatementType = C.DUCKDB_STATEMENT_TYPE_MULTI
+	StatementTypeInvalid          StatementType = C.DUCKDB_STATEMENT_TYPE_INVALID
+	StatementTypeSelect           StatementType = C.DUCKDB_STATEMENT_TYPE_SELECT
+	StatementTypeInsert           StatementType = C.DUCKDB_STATEMENT_TYPE_INSERT
+	StatementTypeUpdate           StatementType = C.DUCKDB_STATEMENT_TYPE_UPDATE
+	StatementTypeExplain          StatementType = C.DUCKDB_STATEMENT_TYPE_EXPLAIN
+	StatementTypeDelete           StatementType = C.DUCKDB_STATEMENT_TYPE_DELETE
+	StatementTypePrepare          StatementType = C.DUCKDB_STATEMENT_TYPE_PREPARE
+	StatementTypeCreate           StatementType = C.DUCKDB_STATEMENT_TYPE_CREATE
+	StatementTypeExecute          StatementType = C.DUCKDB_STATEMENT_TYPE_EXECUTE
+	StatementTypeAlter            StatementType = C.DUCKDB_STATEMENT_TYPE_ALTER
+	StatementTypeTransaction      StatementType = C.DUCKDB_STATEMENT_TYPE_TRANSACTION
+	StatementTypeCopy             StatementType = C.DUCKDB_STATEMENT_TYPE_COPY
+	StatementTypeAnalyze          StatementType = C.DUCKDB_STATEMENT_TYPE_ANALYZE
+	StatementTypeVariableSet      StatementType = C.DUCKDB_STATEMENT_TYPE_VARIABLE_SET
+	StatementTypeCreateFunc       StatementType = C.DUCKDB_STATEMENT_TYPE_CREATE_FUNC
+	StatementTypeDrop             StatementType = C.DUCKDB_STATEMENT_TYPE_DROP
+	StatementTypeExport           StatementType = C.DUCKDB_STATEMENT_TYPE_EXPORT
+	StatementTypePragma           StatementType = C.DUCKDB_STATEMENT_TYPE_PRAGMA
+	StatementTypeVacuum           StatementType = C.DUCKDB_STATEMENT_TYPE_VACUUM
+	StatementTypeCall             StatementType = C.DUCKDB_STATEMENT_TYPE_CALL
+	StatementTypeSet              StatementType = C.DUCKDB_STATEMENT_TYPE_SET
+	StatementTypeLoad             StatementType = C.DUCKDB_STATEMENT_TYPE_LOAD
+	StatementTypeRelation         StatementType = C.DUCKDB_STATEMENT_TYPE_RELATION
+	StatementTypeExtension        StatementType = C.DUCKDB_STATEMENT_TYPE_EXTENSION
+	StatementTypeLogicalPlan      StatementType = C.DUCKDB_STATEMENT_TYPE_LOGICAL_PLAN
+	StatementTypeAttach           StatementType = C.DUCKDB_STATEMENT_TYPE_ATTACH
+	StatementTypeDetach           StatementType = C.DUCKDB_STATEMENT_TYPE_DETACH
+	StatementTypeMulti            StatementType = C.DUCKDB_STATEMENT_TYPE_MULTI
+	StatementTypeCopyDatabase     StatementType = C.DUCKDB_STATEMENT_TYPE_COPY_DATABASE
+	StatementTypeUpdateExtensions StatementType = C.DUCKDB_STATEMENT_TYPE_UPDATE_EXTENSIONS
+	StatementTypeMergeInto        StatementType = C.DUCKDB_STATEMENT_TYPE_MERGE_INTO
 )
 
 // ErrorType wraps duckdb_error_type.
