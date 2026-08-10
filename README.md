@@ -85,6 +85,14 @@ The script handles:
 
 Run it again after merging the deps PR to complete the release.
 
+## Nightly artifact validation
+
+The `Nightly` workflow accepts a full DuckDB commit SHA and downloads the
+matching Linux amd64 artifacts from DuckDB's staging endpoint. It compiles the
+bindings against the artifact header, summarizes the resulting header diff,
+exercises both static and dynamic linking, verifies the linked source ID, and
+installs and loads `httpfs` from a clean extension directory.
+
 ## Installation
 
 Simply import the module in your Go project:
