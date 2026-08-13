@@ -68,7 +68,7 @@ jobs:
           go-version: ${{ matrix.version }}
       - name: Test ${{ matrix.filename }}
         run: |
-          make test.dynamic.lib FILENAME=${{ matrix.filename }}
+          make fetch.dynamic.lib FILENAME=${{ matrix.filename }}
           CGO_ENABLED=1 CGO_LDFLAGS="-L${SRCDIR}dynamic-dir" ${{ matrix.filepath }}=${SRCDIR}dynamic-dir go test -tags=duckdb_use_lib
           CGO_ENABLED=1 CGO_LDFLAGS="-L${SRCDIR}dynamic-dir" ${{ matrix.filepath }}=${SRCDIR}dynamic-dir go test -tags=duckdb_use_lib,debug_bindings
           CGO_ENABLED=1 CGO_LDFLAGS="-L${SRCDIR}dynamic-dir" ${{ matrix.filepath }}=${SRCDIR}dynamic-dir go test -tags=duckdb_use_lib,debug_bindings,duckdb_arrow

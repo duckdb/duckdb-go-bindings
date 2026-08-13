@@ -33,7 +33,7 @@ jobs:
       - name: Set up workspace
         run: cp go.work.dev go.work
 
-      - name: Download nightly artifacts
+      - name: Install nightly artifacts
         id: artifacts
         run: |
           if [[ ! "$DUCKDB_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
@@ -41,41 +41,17 @@ jobs:
             exit 1
           fi
 
-          staging_key_length=10
           staging_key=${DUCKDB_SHA,,}
-          staging_key=${staging_key:0:$staging_key_length}
-          staging_base="https://duckdb-staging.duckdb.org/$staging_key/duckdb/duckdb/github_release"
+          staging_key=${staging_key:0:10}
+          base_url="https://duckdb-staging.duckdb.org/$staging_key/duckdb/duckdb/github_release"
+          echo "Installing staging artifacts from $base_url"
 
-          download_artifact() {
-            artifact_name=$1
-            artifact_path=$2
-            artifact_url="$staging_base/$artifact_name"
-            curl --fail --location --retry 5 \
-              --output "$artifact_path" "$artifact_url" || {
-              echo "::error::No staging artifact at $artifact_url"
-              exit 1
-            }
-          }
-
-          mkdir -p \
-            "$RUNNER_TEMP/duckdb-artifacts/static" \
-            "$RUNNER_TEMP/duckdb-artifacts/dynamic"
-          download_artifact \
-            static-libs-linux-amd64.zip \
-            "$RUNNER_TEMP/duckdb-artifacts/static/static-libs-linux-amd64.zip"
-          download_artifact \
-            libduckdb-linux-amd64.zip \
-            "$RUNNER_TEMP/duckdb-artifacts/dynamic/libduckdb-linux-amd64.zip"
-
-      - name: Install nightly static artifact
-        id: static
-        if: ${{ !cancelled() && steps.artifacts.outcome == 'success' }}
-        run: |
-          rm -f lib/linux-amd64/*.a lib/linux-amd64/duckdb.h
-          unzip -q \
-            "$RUNNER_TEMP/duckdb-artifacts/static/static-libs-linux-amd64.zip" \
-            -d lib/linux-amd64
-          cp lib/linux-amd64/duckdb.h include/duckdb.h
+          make fetch.static.libs \
+            PLATFORM=linux-amd64 FILENAME=static-libs-linux-amd64 COPY_HEADER=1 \
+            BASE_URL="$base_url"
+          make fetch.dynamic.lib \
+            FILENAME=libduckdb-linux-amd64 \
+            BASE_URL="$base_url" DYNAMIC_DIR="$RUNNER_TEMP/libduckdb"
 
       - name: Show nightly header diff
         if: always()
@@ -85,22 +61,18 @@ jobs:
           git diff --numstat -- include/duckdb.h
 
       - name: Test nightly static artifact
-        if: ${{ !cancelled() && steps.static.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.artifacts.outcome == 'success' }}
         run: |
           go test -count=1 -tags=duckdb_nightly
           go test -count=1 -tags=debug_bindings
           go test -count=1 -tags=debug_bindings,duckdb_arrow
 
-      - name: Install nightly dynamic artifact
+      - name: Prepare nightly dynamic linking
         id: dynamic
         if: ${{ !cancelled() && steps.artifacts.outcome == 'success' }}
         run: |
-          mkdir -p "$RUNNER_TEMP/libduckdb"
-          unzip -q \
-            "$RUNNER_TEMP/duckdb-artifacts/dynamic/libduckdb-linux-amd64.zip" \
-            -d "$RUNNER_TEMP/libduckdb"
+          # Both artifacts ship duckdb.h; the static one is already in include/.
           cmp lib/linux-amd64/duckdb.h "$RUNNER_TEMP/libduckdb/duckdb.h"
-          cp "$RUNNER_TEMP/libduckdb/duckdb.h" include/duckdb.h
           {
             echo "DUCKDB_LIB_DIR=$RUNNER_TEMP/libduckdb"
             echo "LD_LIBRARY_PATH=$RUNNER_TEMP/libduckdb${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
