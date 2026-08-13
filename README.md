@@ -78,6 +78,14 @@ cp go.work.dev go.work
 
 This sets up Go workspaces to use the local lib/\* submodules instead of fetching from the module proxy.
 
+## Nightly artifact validation
+
+The `Nightly` workflow accepts a full DuckDB commit SHA and downloads the
+matching Linux amd64 artifacts from DuckDB's staging endpoint. It compiles the
+bindings against the artifact header, summarizes the resulting header diff,
+exercises both static and dynamic linking, verifies the linked source ID, and
+installs and loads `httpfs` from a clean extension directory.
+
 ## Releasing a new DuckDB version
 
 Prepare normal releases from `main`. For LTS releases that stay on DuckDB 1.4 Andium, use the `v1.4-andium` branch.
@@ -102,14 +110,6 @@ The script handles:
 - Tagging and pushing root module
 
 Run it again after merging the deps PR to complete the release.
-
-## Nightly artifact validation
-
-The `Nightly` workflow accepts a full DuckDB commit SHA and downloads the
-matching Linux amd64 artifacts from DuckDB's staging endpoint. It compiles the
-bindings against the artifact header, summarizes the resulting header diff,
-exercises both static and dynamic linking, verifies the linked source ID, and
-installs and loads `httpfs` from a clean extension directory.
 
 ## Build Configuration
 

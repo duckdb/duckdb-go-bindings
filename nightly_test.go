@@ -3,7 +3,6 @@
 package duckdb_go_bindings
 
 import (
-	"encoding/hex"
 	"fmt"
 	"os"
 	"strings"
@@ -14,7 +13,7 @@ import (
 
 const minDuckDBSourceIDLength = 7
 
-func openNightlyConnection(t *testing.T, extensionDirectory string) (Connection, func()) {
+func openNightlyConnection(t *testing.T, extensionDirectory string) Connection {
 	t.Helper()
 
 	var config Config
@@ -30,36 +29,33 @@ func openNightlyConnection(t *testing.T, extensionDirectory string) (Connection,
 	var conn Connection
 	require.Equal(t, StateSuccess, Connect(db, &conn))
 
-	cleanup := func() {
+	t.Cleanup(func() {
 		Disconnect(&conn)
 		Close(&db)
 		DestroyConfig(&config)
-	}
-	return conn, cleanup
+	})
+	return conn
 }
 
 func TestNightlyArtifactMatchesRequestedDuckDBCommit(t *testing.T) {
 	expectedSHA := strings.ToLower(os.Getenv("DUCKDB_SHA"))
-	require.Len(t, expectedSHA, 40, "DUCKDB_SHA must be a full commit SHA")
-	_, err := hex.DecodeString(expectedSHA)
-	require.NoError(t, err, "DUCKDB_SHA must be hexadecimal")
+	require.Regexp(t, `^[0-9a-f]{40}$`, expectedSHA, "DUCKDB_SHA must be a full hexadecimal commit SHA")
 
-	conn, cleanup := openNightlyConnection(t, "")
-	defer cleanup()
+	conn := openNightlyConnection(t, "")
 
+	// source_id is a commit prefix, so expectedSHA (validated hexadecimal above)
+	// must start with it. error() reports the observed source_id on a mismatch.
 	query := fmt.Sprintf(`
 		SELECT CASE
-			WHEN length(source_id) >= %d
-				AND regexp_full_match(source_id, '[0-9a-fA-F]+')
-				AND starts_with('%s', lower(source_id))
+			WHEN length(source_id) >= %[1]d AND starts_with('%[2]s', lower(source_id))
 			THEN 1
 			ELSE error(
 				'linked DuckDB reports source_id ' || source_id ||
-				', expected a hexadecimal prefix of at least %d characters matching %s'
+				', expected a hexadecimal prefix of at least %[1]d characters matching %[2]s'
 			)
 		END
 		FROM pragma_version()
-	`, minDuckDBSourceIDLength, expectedSHA, minDuckDBSourceIDLength, expectedSHA)
+	`, minDuckDBSourceIDLength, expectedSHA)
 
 	var result Result
 	defer DestroyResult(&result)
@@ -68,8 +64,7 @@ func TestNightlyArtifactMatchesRequestedDuckDBCommit(t *testing.T) {
 }
 
 func TestNightlyArtifactInstallsAndLoadsHTTPFS(t *testing.T) {
-	conn, cleanup := openNightlyConnection(t, t.TempDir())
-	defer cleanup()
+	conn := openNightlyConnection(t, t.TempDir())
 
 	var result Result
 	defer DestroyResult(&result)
