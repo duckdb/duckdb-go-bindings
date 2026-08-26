@@ -1,4 +1,5 @@
 .idea
 .DS_Store
+/dynamic-dir/
 go.work
 go.work.sum

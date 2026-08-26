@@ -5,7 +5,7 @@ package duckdb_go_bindings
 import (
 	"fmt"
 	"os"
-	"strings"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -13,14 +13,27 @@ import (
 
 const minDuckDBSourceIDLength = 7
 
-func openNightlyConnection(t *testing.T, extensionDirectory string) Connection {
+func tempExtensionDirectory(t *testing.T) string {
+	t.Helper()
+
+	dir, err := os.MkdirTemp("", "duckdb-nightly-ext-*")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		// DuckDB keeps loaded extension DLLs open for the process lifetime, so
+		// Windows may not release the directory until go test exits.
+		if err := os.RemoveAll(dir); err != nil && runtime.GOOS != "windows" {
+			t.Error(err)
+		}
+	})
+	return dir
+}
+
+func openNightlyConnection(t *testing.T) Connection {
 	t.Helper()
 
 	var config Config
 	require.Equal(t, StateSuccess, CreateConfig(&config))
-	if extensionDirectory != "" {
-		require.Equal(t, StateSuccess, SetConfig(config, "extension_directory", extensionDirectory))
-	}
+	require.Equal(t, StateSuccess, SetConfig(config, "extension_directory", tempExtensionDirectory(t)))
 
 	var db Database
 	var errMsg string
@@ -38,10 +51,10 @@ func openNightlyConnection(t *testing.T, extensionDirectory string) Connection {
 }
 
 func TestNightlyArtifactMatchesRequestedDuckDBCommit(t *testing.T) {
-	expectedSHA := strings.ToLower(os.Getenv("DUCKDB_SHA"))
-	require.Regexp(t, `^[0-9a-f]{40}$`, expectedSHA, "DUCKDB_SHA must be a full hexadecimal commit SHA")
+	expectedSHA := os.Getenv("DUCKDB_SHA")
+	require.Regexp(t, `^[0-9a-f]{40}$`, expectedSHA, "DUCKDB_SHA must be a full lowercase hexadecimal commit SHA")
 
-	conn := openNightlyConnection(t, "")
+	conn := openNightlyConnection(t)
 
 	// source_id is a commit prefix, so expectedSHA (validated hexadecimal above)
 	// must start with it. error() reports the observed source_id on a mismatch.
@@ -64,7 +77,7 @@ func TestNightlyArtifactMatchesRequestedDuckDBCommit(t *testing.T) {
 }
 
 func TestNightlyArtifactInstallsAndLoadsHTTPFS(t *testing.T) {
-	conn := openNightlyConnection(t, t.TempDir())
+	conn := openNightlyConnection(t)
 
 	var result Result
 	defer DestroyResult(&result)
