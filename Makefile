@@ -1,4 +1,4 @@
-DUCKDB_VERSION=v1.5.5
+DUCKDB_VERSION=v1.5.6
 
 # Where artifacts are fetched from. Override on the make command line to install
 # from somewhere else, e.g. the nightly workflow's staging endpoint. It must be
