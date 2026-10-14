@@ -92,6 +92,28 @@ cp go.work.dev go.work
 
 This sets up Go workspaces to use the local lib/\* submodules instead of fetching from the module proxy.
 
+### Static library packaging
+
+GitHub blocks individual files larger than 100 MiB. The fetch workflow runs
+`make package.static.libs PLATFORM=<platform>` after downloading each platform's
+archives to keep the prebuilt libraries below that limit. Packaging needs Python
+3.9 or newer and LLVM 19 or newer (`llvm-ar`, `llvm-nm`, and `ld.lld`); consumers
+only need their usual C compiler.
+The tool paths can be overridden with `LLVM_AR`, `LLVM_NM`, and `LD_LLD`.
+
+Oversized Linux ELF objects are relinked with merged sections, preserving every
+exported symbol, including symbols unused by the bindings or bundled extensions.
+No section garbage collection or extension-specific symbol list is used.
+Oversized archives containing multiple objects are split at object boundaries.
+Their original `.a` filename becomes a GNU linker `GROUP` script that rescans
+the parts, so `-lduckdb_static` continues to work on Linux and MinGW. Keep all
+the part archives alongside the script when copying packaged libraries.
+
+Archives that already fit, including the current macOS libraries, are unchanged.
+Packaging fails if an individual object still exceeds the limit or an oversized
+archive uses an unsupported platform. `make fetch.static.libs` alone keeps the
+upstream archives intact for nightly artifact validation.
+
 ## Nightly artifact validation
 
 The `Nightly` workflow accepts a full DuckDB commit SHA and downloads the

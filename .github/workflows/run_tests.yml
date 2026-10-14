@@ -12,6 +12,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  packaging-tests:
+    name: Test Static Archive Packaging
+    runs-on: ubuntu-latest
+    env:
+      LLVM_AR: llvm-ar-19
+      LLVM_NM: llvm-nm-19
+      LD_LLD: ld.lld-19
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install archive packaging tools
+        run: sudo apt-get update && sudo apt-get install -y llvm-19 lld-19
+      - name: Test archive packaging
+        run: python3 -m unittest discover -s scripts -p '*_test.py'
+
   go-tests:
     name: Test Pre-Built Libs
     runs-on: ${{ matrix.os }}

@@ -4,23 +4,29 @@ on:
 jobs:
   fetch-libs:
     runs-on: ubuntu-latest
+    env:
+      LLVM_AR: llvm-ar-19
+      LLVM_NM: llvm-nm-19
+      LD_LLD: ld.lld-19
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.head_ref }}
+      - name: Install archive packaging tools
+        run: sudo apt-get update && sudo apt-get install -y llvm-19 lld-19
       - name: Fetch Darwin
         run: |
-          make fetch.static.libs PLATFORM=darwin-arm64 ARTIFACT_PLATFORM=osx-arm64 COPY_HEADER=1
-          make fetch.static.libs PLATFORM=darwin-amd64 ARTIFACT_PLATFORM=osx-amd64
+          make fetch.static.libs package.static.libs PLATFORM=darwin-arm64 ARTIFACT_PLATFORM=osx-arm64 COPY_HEADER=1
+          make fetch.static.libs package.static.libs PLATFORM=darwin-amd64 ARTIFACT_PLATFORM=osx-amd64
         shell: bash
       - name: Fetch Linux
         run: |
-          make fetch.static.libs PLATFORM=linux-amd64 ARTIFACT_PLATFORM=linux-amd64
-          make fetch.static.libs PLATFORM=linux-arm64 ARTIFACT_PLATFORM=linux-arm64
+          make fetch.static.libs package.static.libs PLATFORM=linux-amd64 ARTIFACT_PLATFORM=linux-amd64
+          make fetch.static.libs package.static.libs PLATFORM=linux-arm64 ARTIFACT_PLATFORM=linux-arm64
         shell: bash
       - name: Fetch Windows
         run: |
-          make fetch.static.libs PLATFORM=windows-amd64 ARTIFACT_PLATFORM=windows-mingw
+          make fetch.static.libs package.static.libs PLATFORM=windows-amd64 ARTIFACT_PLATFORM=windows-mingw
         shell: bash
       - name: Commit
         uses: stefanzweifel/git-auto-commit-action@v5
