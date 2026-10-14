@@ -68,6 +68,20 @@ The module includes pre-built static libraries for all supported platforms:
 
 Platform detection and linking is handled automatically through cgo directives. `CGO_ENABLED=1` is required, and your system needs a C compiler.
 
+## Upgrading to DuckDB v2
+
+The Go API is unchanged: the bindings keep using DuckDB's C API v1, which DuckDB v2 still ships. What else changes depends on how you link DuckDB.
+
+**Pre-built static libraries (default):** nothing to do. DuckDB v2 no longer loads statically linked extensions on its own; the bindings register them when the package is initialized, before any database can be opened. The same extensions as before are loaded, and installing and loading other extensions works as before.
+
+**Dynamic libraries (`duckdb_use_lib`):** nothing to do. The shared library registers its own extensions. DuckDB v2 publishes it as `duckdb-shared-libs-<platform>.tar.gz`, or use DuckDB's install script (see [Dynamic Libraries](#alternative-dynamic-libraries)).
+
+**Custom static libraries (`duckdb_use_static_lib`):** your build needs changes (see [Custom Static Libraries](#alternative-custom-static-libraries)):
+
+- Link a static extension loader that defines `duckdb_register_static_extensions()`, which the bindings call before any database is opened. Without it, the build fails with an undefined symbol.
+- Link the new set of archives: the third-party libraries are now part of `libduckdb_static.a`, `libduckdb_generated_extension_loader.a` and DuckDB's `bundle-library` target are gone, and `libduckdb_httplib.a` and `libduckdb_loadable_extensions.a` are new. Put `libduckdb_static.a` last.
+- If your build already registers its extensions before `main` (`static_extension_autoregister.cpp`, linked with `-Wl,-u,duckdb_register_static_extensions`), it keeps working, since registering an extension twice is a no-op. The bindings now call the loader themselves, so neither is needed anymore.
+
 ## Local Development
 
 To develop locally, copy the workspace template file:
@@ -126,31 +140,49 @@ The appropriate library and linker flags are selected automatically based on you
 
 ### Alternative: Custom Static Libraries
 
-To use your own DuckDB static library instead of the pre-built ones, use the `duckdb_use_static_lib` build tag and provide library paths via `CGO_LDFLAGS`:
+To use your own DuckDB static libraries instead of the pre-built ones, use the `duckdb_use_static_lib` build tag and provide the libraries via `CGO_LDFLAGS`.
+
+DuckDB's install script fetches the static libraries of a release for the current platform into `~/.duckdb/lib/<version>/release_<platform>`:
 
 ```bash
+curl https://install.duckdb.org | DUCKDB_INSTALL=static sh
+```
+
+Statically linked extensions are only loaded once they are registered with DuckDB. With `duckdb_use_static_lib`, the bindings call `duckdb_register_static_extensions()` before any database is opened, and your build must link it. DuckDB generates it for the extensions and capabilities (`httplib`, `loadable_extensions`) of a build:
+
+```bash
+# In your DuckDB checkout, after building it
+make static_extension_loader  # writes build/release/static_extension_loader.c
+cc -c -Isrc/include build/release/static_extension_loader.c -o static_extension_loader.o
+ar rcs libduckdb_static_extension_loader.a static_extension_loader.o
+```
+
+Without a DuckDB checkout, use [static_extension_loader.c](static_extension_loader.c) as a starting point, keeping the describe functions for the archives you link. Compile it against the `duckdb_static_extension.h` that comes with the libraries. The loader registers capabilities (`httplib`, `loadable_extensions`) before extensions.
+
+Then link the loader, the extension archives, and `libduckdb_static.a` last:
+
+```bash
+EXTENSIONS="-lduckdb_static_extension_loader -lduckdb_httplib -lduckdb_loadable_extensions -ljson_extension"
+
 # Darwin/macOS
 CGO_ENABLED=1 \
-  CPPFLAGS="-DDUCKDB_STATIC_BUILD" \
-  CGO_LDFLAGS="-lduckdb -lc++ -L/path/to/lib" \
+  CGO_LDFLAGS="$EXTENSIONS -lduckdb_static -lc++ -L/path/to/lib" \
   go build -tags=duckdb_use_static_lib
 
 # Linux
 CGO_ENABLED=1 \
-  CPPFLAGS="-DDUCKDB_STATIC_BUILD" \
-  CGO_LDFLAGS="-lduckdb -lstdc++ -lm -ldl -L/path/to/lib" \
+  CGO_LDFLAGS="$EXTENSIONS -lduckdb_static -lstdc++ -lm -ldl -L/path/to/lib" \
   go build -tags=duckdb_use_static_lib
 
 # Windows
 CGO_ENABLED=1 \
-  CPPFLAGS="-DDUCKDB_STATIC_BUILD" \
-  CGO_LDFLAGS="-lduckdb -lws2_32 -lwsock32 -lrstrtmgr -lstdc++ -lm --static -L/path/to/lib" \
+  CGO_LDFLAGS="$EXTENSIONS -lduckdb_static -lws2_32 -lwsock32 -lrstrtmgr -lstdc++ -lm --static -L/path/to/lib" \
   go build -tags=duckdb_use_static_lib
 ```
 
 ### Alternative: Dynamic Libraries
 
-To link against a shared DuckDB library, use the `duckdb_use_lib` build tag:
+To link against a shared DuckDB library, use the `duckdb_use_lib` build tag. `curl https://install.duckdb.org | DUCKDB_INSTALL=shared sh` installs the shared library of a release into `~/.duckdb/lib/<version>/release_<platform>`.
 
 ```bash
 # Darwin/macOS
