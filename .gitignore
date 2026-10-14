@@ -3,3 +3,4 @@
 /dynamic-dir/
 go.work
 go.work.sum
+__pycache__/
