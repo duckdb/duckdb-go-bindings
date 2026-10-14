@@ -116,8 +116,9 @@ Archives that already fit, including the current macOS libraries, are unchanged.
 Packaging fails if an individual object still exceeds the limit or an oversized
 archive uses an unsupported platform. `make fetch.static.libs` alone keeps the
 upstream archives intact for nightly artifact validation.
-Fetching also resets the archive flags in `prebuilt.go` to match those upstream
-libraries, so nightly builds continue to link the original single archive.
+Fetching requires Python 3.9 or newer to reset the archive flags in `prebuilt.go`
+to match those upstream libraries, so nightly builds continue to link the
+original single archive. LLVM is only needed for packaging oversized archives.
 
 ## Nightly artifact validation
 
