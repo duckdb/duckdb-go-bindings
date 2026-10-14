@@ -1,9 +1,10 @@
-DUCKDB_VERSION=v2.0.0
+DUCKDB_VERSION=v2.0.0-alpha46057
 
 # Where artifacts are fetched from. Override on the make command line to install
 # from somewhere else, e.g. the nightly workflow's staging endpoint. It must be
 # passed as an argument, not exported: '=' takes precedence over the environment.
-BASE_URL=https://github.com/duckdb/duckdb/releases/download/${DUCKDB_VERSION}
+# TODO: Fetch from the GitHub release once DuckDB v2.0.0 is out.
+BASE_URL=https://duckdb-staging.duckdb.org/b15358c371/${DUCKDB_VERSION}/duckdb/duckdb/github_release
 
 # Where fetch.dynamic.lib unpacks the shared library.
 DYNAMIC_DIR=dynamic-dir
