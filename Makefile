@@ -43,4 +43,9 @@ fetch.dynamic.lib:
 	tar -xzf ${FILENAME} && \
 	rm -f ${FILENAME}
 
-.PHONY: fetch.static.libs fetch.dynamic.lib
+# Packaging is separate so nightly tests still exercise the upstream artifacts.
+# LLVM tools are needed only when an archive exceeds GitHub's 100 MiB limit.
+package.static.libs:
+	python3 scripts/package_static_libs.py lib/${PLATFORM}
+
+.PHONY: fetch.static.libs fetch.dynamic.lib package.static.libs
