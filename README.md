@@ -106,13 +106,18 @@ exported symbol, including symbols unused by the bindings or bundled extensions.
 No section garbage collection or extension-specific symbol list is used.
 Oversized archives containing multiple objects are split at object boundaries.
 Their original `.a` filename becomes a GNU linker `GROUP` script that rescans
-the parts, so `-lduckdb_static` continues to work on Linux and MinGW. Keep all
-the part archives alongside the script when copying packaged libraries.
+the parts. Packaging updates the archive flags in `prebuilt.go` to list each
+part between `-Wl,--start-group` and `-Wl,--end-group`, supporting both GNU ld
+and MinGW lld. Keep all the part archives when copying packaged libraries.
+Custom linking with `-lduckdb_static` still works with GNU ld; MinGW lld needs
+the explicit grouped part list because it cannot read archive linker scripts.
 
 Archives that already fit, including the current macOS libraries, are unchanged.
 Packaging fails if an individual object still exceeds the limit or an oversized
 archive uses an unsupported platform. `make fetch.static.libs` alone keeps the
 upstream archives intact for nightly artifact validation.
+Fetching also resets the archive flags in `prebuilt.go` to match those upstream
+libraries, so nightly builds continue to link the original single archive.
 
 ## Nightly artifact validation
 
