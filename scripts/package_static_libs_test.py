@@ -1,3 +1,5 @@
+import os
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -92,6 +94,94 @@ class PackageStaticLibsTest(unittest.TestCase):
             packaging.package_archive(archive, "windows-amd64", max_file_size=1000)
         self.assertEqual(original, archive.read_bytes())
         self.assertFalse(list(self.root.glob("liblarge_part*.a")))
+
+    def test_windows_split_links_with_mingw_lld(self):
+        clang = os.environ.get("LLVM_CLANG", "clang")
+        objects = []
+        for name, source in [
+            ("final", "char pad_a[4096] = {1}; int final(void) { return 42; }"),
+            ("entry", "char pad_b[4096] = {1}; int middle(void); "
+             "int entry(void) { return middle(); }"),
+            ("middle", "char pad_c[4096] = {1}; int final(void); "
+             "int middle(void) { return final(); }"),
+            ("main", "int entry(void); int mainCRTStartup(void) { return entry() != 42; }"),
+        ]:
+            src = self.root / f"{name}.c"
+            obj = self.root / f"{name}.o"
+            src.write_text(source)
+            subprocess.run(
+                [clang, "--target=x86_64-w64-mingw32", "-c", src, "-o", obj],
+                check=True,
+            )
+            objects.append(obj)
+        archive = self.root / "libexample.a"
+        subprocess.run([packaging.AR, "rcsD", archive, *objects[:3]], check=True)
+        prebuilt = self.root / "prebuilt.go"
+        prebuilt.write_text("#cgo LDFLAGS: -lexample -L${SRCDIR}\n")
+        packaging.package_archive(archive, "windows-amd64", max_file_size=8000)
+        flags = prebuilt.read_text().split(": ", 1)[1].split()
+        flags = [flag.replace("${SRCDIR}", str(self.root)) for flag in flags]
+        subprocess.run(
+            [clang, "--target=x86_64-w64-mingw32", "-nostdlib",
+             "-fuse-ld=" + shutil.which(packaging.LLD),
+             "-Wl,--entry,mainCRTStartup", "-Wl,--subsystem,console",
+             objects[3], *flags,
+             "-o", self.root / "example.exe"],
+            check=True,
+        )
+        self.assertEqual(
+            ["-Wl,--start-group", "-lexample_part1", "-lexample_part2",
+             "-lexample_part3", "-Wl,--end-group", "-L${SRCDIR}"],
+            prebuilt.read_text().split(": ", 1)[1].split(),
+        )
+
+    def test_upstream_fetch_restores_single_archive_linking(self):
+        obj = self.compile(self.root / "a", "int answer(void) { return 42; }")
+        archive = self.root / "libexample.a"
+        subprocess.run([packaging.AR, "rcsD", archive, obj], check=True)
+        prebuilt = self.root / "prebuilt.go"
+        prebuilt.write_text(
+            "#cgo LDFLAGS: -lother -Wl,--start-group -lexample_part1 "
+            "-lexample_part2 -lexample_part3 -Wl,--end-group -lm -L${SRCDIR}\n"
+        )
+        original = archive.read_bytes()
+        subprocess.run(
+            ["python3", packaging.__file__, "--sync-linker-flags", self.root],
+            check=True,
+        )
+        self.assertEqual(original, archive.read_bytes())
+        self.assertEqual(
+            "#cgo LDFLAGS: -lother -lexample -lm -L${SRCDIR}\n",
+            prebuilt.read_text(),
+        )
+
+    def test_repackaging_updates_part_count(self):
+        objects = [
+            self.compile(self.root / name, f"char pad_{name}[4096] = {{1}};")
+            for name in ["a", "b", "c"]
+        ]
+        archive = self.root / "libexample.a"
+        subprocess.run([packaging.AR, "qcD", archive, *objects], check=True)
+        subprocess.run([packaging.AR, "sD", archive], check=True)
+        prebuilt = self.root / "prebuilt.go"
+        prebuilt.write_text("#cgo LDFLAGS: -lother -lexample -lm -L${SRCDIR}\n")
+        packaging.package_archive(archive, "windows-amd64", max_file_size=12000)
+        self.assertEqual(
+            "#cgo LDFLAGS: -lother -Wl,--start-group -lexample_part1 "
+            "-lexample_part2 -Wl,--end-group -lm -L${SRCDIR}\n",
+            prebuilt.read_text(),
+        )
+
+        # Simulate another download with a smaller packaging size budget.
+        archive.unlink()
+        subprocess.run([packaging.AR, "qcD", archive, *objects], check=True)
+        subprocess.run([packaging.AR, "sD", archive], check=True)
+        packaging.package_archive(archive, "windows-amd64", max_file_size=8000)
+        self.assertEqual(
+            "#cgo LDFLAGS: -lother -Wl,--start-group -lexample_part1 "
+            "-lexample_part2 -lexample_part3 -Wl,--end-group -lm -L${SRCDIR}\n",
+            prebuilt.read_text(),
+        )
 
 
 if __name__ == "__main__":

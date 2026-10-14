@@ -33,7 +33,9 @@ fetch.static.libs:
 	if [ -n "${COPY_HEADER}" ]; then \
 		tar -xzf ${FILENAME} -C ../../include duckdb.h duckdb_static_extension.h; \
 	fi && \
-	rm -f ${FILENAME}
+	rm -f ${FILENAME} && \
+	cd ../.. && \
+	python3 scripts/package_static_libs.py --sync-linker-flags lib/${PLATFORM}
 
 fetch.dynamic.lib: FILENAME=duckdb-shared-libs-${ARTIFACT_PLATFORM}.tar.gz
 fetch.dynamic.lib:

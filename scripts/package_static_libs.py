@@ -2,13 +2,14 @@
 """Fit static archives under GitHub's file limit without discarding exports.
 
 Run on the downloaded lib/<platform> directory before committing it. Consumers
-need no packaging tools: Linux uses ordinary archives, and split archives are
-resolved by GNU ld's GROUP command through the original library name.
+need no packaging tools: cgo links split archives explicitly for GNU ld and
+MinGW lld. A GROUP script also retains the original library name for GNU ld.
 """
 
 import argparse
 import collections
 import os
+import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -88,9 +89,44 @@ def extract_members(archive, directory):
     return members
 
 
+def sync_linker_flags(archive):
+    prebuilt = archive.parent / "prebuilt.go"
+    if not prebuilt.is_file():
+        return
+    library = archive.stem.removeprefix("lib")
+    with archive.open("rb") as stream:
+        magic = stream.read(8)
+    if magic == b"!<arch>\n":
+        flags = f"-l{library}"
+    elif magic == b"/* Split":
+        group = re.search(r"^GROUP \( (.+) \)$", archive.read_text(), re.MULTILINE)
+        if not group:
+            raise ValueError(f"Invalid split archive script: {archive}")
+        flags = f"-Wl,--start-group {group[1]} -Wl,--end-group"
+    else:
+        raise ValueError(f"Unrecognized archive format: {archive}")
+
+    # Replace either the original library or an earlier generated part list.
+    # Fetching upstream archives must also undo the list for nightly builds.
+    escaped = re.escape(library)
+    pattern = re.compile(
+        rf"(?<!\S)(?:-Wl,--start-group(?:\s+-l{escaped}_part\d+)+"
+        rf"\s+-Wl,--end-group|-l{escaped})(?!\S)"
+    )
+    source = prebuilt.read_text()
+    updated = "".join(
+        pattern.sub(lambda match: flags, line)
+        if line.startswith("#cgo LDFLAGS:") else line
+        for line in source.splitlines(keepends=True)
+    )
+    if updated != source:
+        prebuilt.write_text(updated)
+
+
 def package_archive(archive, platform, max_file_size=MAX_FILE_SIZE):
     original_size = archive.stat().st_size
     if original_size <= max_file_size:
+        sync_linker_flags(archive)
         return
     if not platform.startswith(("linux-", "windows-")):
         raise ValueError(f"Cannot package oversized archive for {platform}: {archive}")
@@ -150,18 +186,28 @@ def package_archive(archive, platform, max_file_size=MAX_FILE_SIZE):
                 part.replace(destination)
                 print(f"{destination}: {destination.stat().st_size:,} bytes")
             script.replace(archive)
+        sync_linker_flags(archive)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("directory", type=Path, help="downloaded lib/<platform> directory")
+    parser.add_argument(
+        "--sync-linker-flags", action="store_true",
+        help="update cgo library flags without repackaging upstream archives",
+    )
     args = parser.parse_args()
     directory = args.directory.resolve()
     archives = sorted(directory.glob("*.a"))
     if not archives:
         parser.error(f"No archives in {directory}")
     for archive in archives:
-        package_archive(archive, directory.name)
+        if args.sync_linker_flags:
+            sync_linker_flags(archive)
+        else:
+            package_archive(archive, directory.name)
+    if args.sync_linker_flags:
+        return
     for archive in directory.glob("*.a"):
         if archive.stat().st_size > MAX_FILE_SIZE:
             raise ValueError(f"Archive still exceeds the file limit: {archive}")
