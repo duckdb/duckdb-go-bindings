@@ -56,16 +56,16 @@ jobs:
           - ubuntu-24.04-arm
         include:
           - os: "macos-15-intel"
-            filename: "libduckdb-osx-universal"
+            platform: "osx-universal"
             filepath: "DYLD_LIBRARY_PATH"
           - os: "macos-latest"
-            filename: "libduckdb-osx-universal"
+            platform: "osx-universal"
             filepath: "DYLD_LIBRARY_PATH"
           - os: "ubuntu-latest"
-            filename: "libduckdb-linux-amd64"
+            platform: "linux-amd64"
             filepath: "LD_LIBRARY_PATH"
           - os: "ubuntu-24.04-arm"
-            filename: "libduckdb-linux-arm64"
+            platform: "linux-arm64"
             filepath: "LD_LIBRARY_PATH"
       fail-fast: false
     steps:
@@ -73,9 +73,9 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: ${{ matrix.version }}
-      - name: Test ${{ matrix.filename }}
+      - name: Test ${{ matrix.platform }}
         run: |
-          make fetch.dynamic.lib FILENAME=${{ matrix.filename }}
+          make fetch.dynamic.lib ARTIFACT_PLATFORM=${{ matrix.platform }}
           CGO_ENABLED=1 CGO_LDFLAGS="-L${SRCDIR}dynamic-dir" ${{ matrix.filepath }}=${SRCDIR}dynamic-dir go test -tags=duckdb_use_lib
           CGO_ENABLED=1 CGO_LDFLAGS="-L${SRCDIR}dynamic-dir" ${{ matrix.filepath }}=${SRCDIR}dynamic-dir go test -tags=duckdb_use_lib,debug_bindings
           CGO_ENABLED=1 CGO_LDFLAGS="-L${SRCDIR}dynamic-dir" ${{ matrix.filepath }}=${SRCDIR}dynamic-dir go test -tags=duckdb_use_lib,debug_bindings,duckdb_arrow

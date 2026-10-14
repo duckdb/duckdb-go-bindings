@@ -32,18 +32,18 @@ jobs:
           - name: Linux
             os: ubuntu-latest
             platform: linux-amd64
-            static_artifact: static-libs-linux-amd64
-            dynamic_artifact: libduckdb-linux-amd64
+            static_platform: linux-amd64
+            dynamic_platform: linux-amd64
           - name: macOS
             os: macos-latest
             platform: darwin-arm64
-            static_artifact: static-libs-osx-arm64
-            dynamic_artifact: libduckdb-osx-universal
+            static_platform: osx-arm64
+            dynamic_platform: osx-universal
           - name: Windows
             os: windows-latest
             platform: windows-amd64
-            static_artifact: static-libs-windows-mingw
-            dynamic_artifact: libduckdb-windows-amd64
+            static_platform: windows-mingw
+            dynamic_platform: windows-amd64
     runs-on: ${{ matrix.os }}
     env:
       DUCKDB_SHA: ${{ inputs.duckdb-sha }}
@@ -67,14 +67,18 @@ jobs:
           fi
 
           staging_key=${DUCKDB_SHA:0:10}
-          base_url="https://duckdb-staging.duckdb.org/$staging_key/duckdb/duckdb/github_release"
+          staging_url="https://duckdb-staging.duckdb.org/$staging_key"
+          # Resolve this commit's version from its staging metadata.
+          # TODO: Verify this pointer remains available after DuckDB v2.0.0 ships.
+          duckdb_version=$(curl --fail --silent --show-error --retry 5 "$staging_url/latest_alpha_version.txt")
+          base_url="$staging_url/$duckdb_version/duckdb/duckdb/github_release"
           echo "Installing staging artifacts from $base_url"
 
           make fetch.static.libs \
-            PLATFORM=${{ matrix.platform }} FILENAME=${{ matrix.static_artifact }} COPY_HEADER=1 \
+            PLATFORM=${{ matrix.platform }} ARTIFACT_PLATFORM=${{ matrix.static_platform }} COPY_HEADER=1 \
             BASE_URL="$base_url"
           make fetch.dynamic.lib \
-            FILENAME=${{ matrix.dynamic_artifact }} \
+            ARTIFACT_PLATFORM=${{ matrix.dynamic_platform }} \
             BASE_URL="$base_url"
 
       - name: Show nightly header diff
