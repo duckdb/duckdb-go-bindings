@@ -1,0 +1,2 @@
+/* Split archive; retain whole objects and rescan dependencies. */
+GROUP ( -lduckdb_static_part1 -lduckdb_static_part2 )
