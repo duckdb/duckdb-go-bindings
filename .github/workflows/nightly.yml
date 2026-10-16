@@ -48,6 +48,7 @@ jobs:
             static_artifact: static-libs-windows-mingw
             dynamic_artifact: libduckdb-windows-amd64
     runs-on: ${{ github.repository_owner == 'duckdb' && matrix.namespace || matrix.github }}
+    timeout-minutes: 15
     env:
       DUCKDB_SHA: ${{ inputs.duckdb-sha }}
     steps:

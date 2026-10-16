@@ -15,6 +15,7 @@ jobs:
   go-tests:
     name: Test Pre-Built Libs
     runs-on: &runner ${{ github.repository_owner == 'duckdb' && matrix.namespace || matrix.github }}
+    timeout-minutes: 15
     defaults:
       run:
         shell: bash
@@ -53,6 +54,7 @@ jobs:
   dynamic-lib-tests:
     name: Test Dynamic Libs
     runs-on: *runner
+    timeout-minutes: 15
     defaults:
       run:
         shell: bash
@@ -96,6 +98,7 @@ jobs:
   static-lib-tests:
     name: Test Static Libs
     runs-on: *runner
+    timeout-minutes: 15
     defaults:
       run:
         shell: bash
