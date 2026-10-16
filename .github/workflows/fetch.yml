@@ -3,7 +3,8 @@ on:
   workflow_dispatch:
 jobs:
   fetch-libs:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.repository_owner == 'duckdb' && 'namespace-profile-linux-small' || 'ubuntu-24.04' }}
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
         with:

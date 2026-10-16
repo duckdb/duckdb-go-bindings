@@ -30,21 +30,25 @@ jobs:
       matrix:
         include:
           - name: Linux
-            os: ubuntu-latest
+            github: ubuntu-24.04
+            namespace: namespace-profile-linux-small
             platform: linux-amd64
             static_artifact: static-libs-linux-amd64
             dynamic_artifact: libduckdb-linux-amd64
           - name: macOS
-            os: macos-latest
+            github: macos-26
+            namespace: namespace-profile-macos-arm64
             platform: darwin-arm64
             static_artifact: static-libs-osx-arm64
             dynamic_artifact: libduckdb-osx-universal
           - name: Windows
-            os: windows-latest
+            github: windows-2025
+            namespace: namespace-profile-windows-x64
             platform: windows-amd64
             static_artifact: static-libs-windows-mingw
             dynamic_artifact: libduckdb-windows-amd64
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ github.repository_owner == 'duckdb' && matrix.namespace || matrix.github }}
+    timeout-minutes: 15
     env:
       DUCKDB_SHA: ${{ inputs.duckdb-sha }}
     steps:
