@@ -1,26 +1,29 @@
-DUCKDB_VERSION=v1.5.6
+BROOD=GOWORK=off go run ./internal/cmd/brood
 
-# Where artifacts are fetched from. Override on the make command line to install
-# from somewhere else, e.g. the nightly workflow's staging endpoint. It must be
-# passed as an argument, not exported: '=' takes precedence over the environment.
-BASE_URL=https://github.com/duckdb/duckdb/releases/download/${DUCKDB_VERSION}
+# Stage a custom build, install its header and select it through go.work.
+use.libs:
+	$(BROOD) use
 
-# Where fetch.dynamic.lib unpacks the shared library.
-DYNAMIC_DIR=dynamic-dir
+# Restore the pinned header and stop selecting the staged native module.
+unuse.libs:
+	git restore -- include/duckdb.h
+	rm -f go.work go.work.sum
 
-fetch.static.libs:
-	cd lib/${PLATFORM} && \
-	curl --fail --retry 5 -OL ${BASE_URL}/${FILENAME}.zip && \
-	rm -f *.a duckdb.h && \
-	unzip -q ${FILENAME}.zip && \
-	rm -f ${FILENAME}.zip && \
-	if [ -n "${COPY_HEADER}" ]; then cp duckdb.h ../../include/; fi
+update.libs:
+	$(BROOD) package
+	$(BROOD) pin
+	./scripts/test.sh packaged
 
-fetch.dynamic.lib:
-	mkdir -p ${DYNAMIC_DIR} && \
-	cd ${DYNAMIC_DIR} && \
-	curl --fail --retry 5 -OL ${BASE_URL}/${FILENAME}.zip && \
-	unzip -o -q ${FILENAME}.zip && \
-	rm -f ${FILENAME}.zip
+publish.libs:
+	$(BROOD) upload
 
-.PHONY: fetch.static.libs fetch.dynamic.lib
+test:
+	./scripts/test.sh
+
+test.static:
+	./scripts/test.sh static
+
+test.dynamic:
+	./scripts/test.sh dynamic
+
+.PHONY: use.libs unuse.libs update.libs publish.libs test test.static test.dynamic

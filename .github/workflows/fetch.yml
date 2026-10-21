@@ -1,29 +1,72 @@
-name: Fetch and Push Libs
+name: Update Native Libraries
 on:
   workflow_dispatch:
+
+permissions:
+  contents: write # push the pin commit
+  actions: write # start the tests on it
+
+defaults:
+  run:
+    shell: bash
+
 jobs:
-  fetch-libs:
+  update-libs:
     runs-on: ${{ github.repository_owner == 'duckdb' && 'namespace-profile-linux-small' || 'ubuntu-24.04' }}
     timeout-minutes: 15
+    env:
+      LIB_DESTINATION: remote:duckdb-go
     steps:
+      - name: Require a branch other than the default
+        if: github.ref_type != 'branch' || github.ref_name == github.event.repository.default_branch
+        run: |
+          echo "::error::Run this on a branch: the pin commit is pushed there for review."
+          exit 1
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.head_ref }}
-      - name: Fetch Darwin
-        run: |
-          make fetch.static.libs PLATFORM=darwin-arm64 FILENAME=static-libs-osx-arm64 COPY_HEADER=1
-          make fetch.static.libs PLATFORM=darwin-amd64 FILENAME=static-libs-osx-amd64
-        shell: bash
-      - name: Fetch Linux
-        run: |
-          make fetch.static.libs PLATFORM=linux-amd64 FILENAME=static-libs-linux-amd64
-          make fetch.static.libs PLATFORM=linux-arm64 FILENAME=static-libs-linux-arm64
-        shell: bash
-      - name: Fetch Windows
-        run: |
-          make fetch.static.libs PLATFORM=windows-amd64 FILENAME=static-libs-windows-mingw
-        shell: bash
-      - name: Commit
-        uses: stefanzweifel/git-auto-commit-action@v5
+          persist-credentials: false
+      - uses: actions/setup-go@v7
         with:
-          commit_message: push libs
+          go-version-file: go.mod
+          cache: false
+      - name: Install rclone
+        id: rclone
+        uses: AnimMouse/setup-rclone@26ef2133e09fd383329a1d4c1fbe6a71db1976c9 # v1.12.0
+        with:
+          version: v1.75.2
+      - name: Package, pin and test native modules
+        run: make update.libs
+      # Push before publishing: a rejected push leaves nothing published.
+      - name: Push the pin commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "Pin native modules $(jq -r .version duckdb-release.json)"
+          git push "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git" "HEAD:$GITHUB_REF_NAME"
+      # rclone builds the remote from these variables. Only the steps that use
+      # the bucket get its credentials.
+      - name: Publish native modules
+        env: &bucket
+          RCLONE_CONFIG_REMOTE_TYPE: s3
+          RCLONE_CONFIG_REMOTE_PROVIDER: Cloudflare
+          RCLONE_CONFIG_REMOTE_ACCESS_KEY_ID: ${{ secrets.DUCKDB_GO_BUCKET_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_REMOTE_SECRET_ACCESS_KEY: ${{ secrets.DUCKDB_GO_BUCKET_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_REMOTE_ENDPOINT: ${{ secrets.DUCKDB_GO_BUCKET_ENDPOINT_URL_S3 }}
+          RCLONE_CONFIG_REMOTE_REGION: auto
+          RCLONE_CONFIG_REMOTE_NO_CHECK_BUCKET: "true"
+        run: make publish.libs
+      # The bucket can't be listed through the public origin, so show what it
+      # holds, also after a failed or partial upload.
+      - name: List the published modules
+        if: ${{ !cancelled() && steps.rclone.outcome == 'success' }}
+        env: *bucket
+        run: rclone tree --size --modtime "$LIB_DESTINATION"
+      # Pushes made with the workflow token don't trigger workflows.
+      - name: Test the pin commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh workflow run run_tests.yml --ref "$GITHUB_REF_NAME"

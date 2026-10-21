@@ -194,6 +194,13 @@ func CreateTimestampTZ(val Timestamp) Value {
 	return trackedValue(v)
 }
 
+// CreateTimestampTZNS wraps duckdb_create_timestamp_tz_ns.
+// The return value must be destroyed with DestroyValue.
+func CreateTimestampTZNS(val TimestampNS) Value {
+	v := C.duckdb_create_timestamp_tz_ns(val)
+	return trackedValue(v)
+}
+
 // CreateTimestampS wraps duckdb_create_timestamp_s.
 // The return value must be destroyed with DestroyValue.
 func CreateTimestampS(val TimestampS) Value {
@@ -344,6 +351,10 @@ func GetTimestamp(v Value) Timestamp {
 
 func GetTimestampTZ(v Value) Timestamp {
 	return C.duckdb_get_timestamp_tz(v.data())
+}
+
+func GetTimestampTZNS(v Value) TimestampNS {
+	return C.duckdb_get_timestamp_tz_ns(v.data())
 }
 
 func GetTimestampS(v Value) TimestampS {

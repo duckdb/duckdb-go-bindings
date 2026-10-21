@@ -7,6 +7,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.head_ref || '' }}-${{ github.base_ref || '' }}-${{ github.ref != 'refs/heads/main' || github.sha }}
   cancel-in-progress: true
@@ -21,7 +24,6 @@ jobs:
         shell: bash
     strategy:
       matrix:
-        version: [1.24]
         platform:
           - darwin-amd64
           - darwin-arm64
@@ -43,13 +45,9 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
-          go-version: ${{ matrix.version }}
-      - name: Setup workspace
-        run: cp go.work.dev go.work
+          go-version-file: go.mod
       - name: Test ${{ matrix.platform }}
-        run: |
-          go test
-          go test -tags=debug_bindings,duckdb_arrow
+        run: make test
 
   dynamic-lib-tests:
     name: Test Dynamic Libs
@@ -60,7 +58,6 @@ jobs:
         shell: bash
     strategy:
       matrix:
-        version: [1.24]
         platform:
           - darwin-amd64
           - darwin-arm64
@@ -72,28 +69,14 @@ jobs:
           - *darwin-arm64
           - *linux-amd64
           - *linux-arm64
-          - ${{ fromJSON(github.event_name == 'pull_request' && '[]' || '[{"platform":"darwin-amd64","filename":"libduckdb-osx-universal","filepath":"DYLD_LIBRARY_PATH"}]') }}
-          - platform: "darwin-arm64"
-            filename: "libduckdb-osx-universal"
-            filepath: "DYLD_LIBRARY_PATH"
-          - platform: "linux-amd64"
-            filename: "libduckdb-linux-amd64"
-            filepath: "LD_LIBRARY_PATH"
-          - platform: "linux-arm64"
-            filename: "libduckdb-linux-arm64"
-            filepath: "LD_LIBRARY_PATH"
       fail-fast: false
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
-          go-version: ${{ matrix.version }}
-      - name: Test ${{ matrix.filename }}
-        run: |
-          make fetch.dynamic.lib FILENAME=${{ matrix.filename }}
-          CGO_ENABLED=1 CGO_LDFLAGS="-L${SRCDIR}dynamic-dir" ${{ matrix.filepath }}=${SRCDIR}dynamic-dir go test -tags=duckdb_use_lib
-          CGO_ENABLED=1 CGO_LDFLAGS="-L${SRCDIR}dynamic-dir" ${{ matrix.filepath }}=${SRCDIR}dynamic-dir go test -tags=duckdb_use_lib,debug_bindings
-          CGO_ENABLED=1 CGO_LDFLAGS="-L${SRCDIR}dynamic-dir" ${{ matrix.filepath }}=${SRCDIR}dynamic-dir go test -tags=duckdb_use_lib,debug_bindings,duckdb_arrow
+          go-version-file: go.mod
+      - name: Test ${{ matrix.platform }}
+        run: make test.dynamic
 
   static-lib-tests:
     name: Test Static Libs
@@ -104,34 +87,22 @@ jobs:
         shell: bash
     strategy:
       matrix:
-        version: [1.24]
         platform:
           - darwin-amd64
           - darwin-arm64
           - linux-amd64
           - linux-arm64
         exclude: *skip-intel-on-pr
-        # FIXME: Archive these into a single libduckdb_static.a (similar to DuckDB's bundle-library target).
         include:
           - *darwin-amd64
           - *darwin-arm64
           - *linux-amd64
           - *linux-arm64
-          - ${{ fromJSON(github.event_name == 'pull_request' && '[]' || '[{"platform":"darwin-amd64","flags":"-lduckdb_static -lduckdb_generated_extension_loader -lautocomplete_extension -lcore_functions_extension -licu_extension -ljson_extension -lparquet_extension -ltpcds_extension -ltpch_extension -lduckdb_fastpforlib -lduckdb_fmt -lduckdb_fsst -lduckdb_hyperloglog -lduckdb_mbedtls -lduckdb_miniz -lduckdb_pg_query -lduckdb_re2 -lduckdb_skiplistlib -lduckdb_utf8proc -lduckdb_yyjson -lduckdb_zstd -lc++"}]') }}
-          - platform: "darwin-arm64"
-            flags: "-lduckdb_static -lduckdb_generated_extension_loader -lautocomplete_extension -lcore_functions_extension -licu_extension -ljson_extension -lparquet_extension -ltpcds_extension -ltpch_extension -lduckdb_fastpforlib -lduckdb_fmt -lduckdb_fsst -lduckdb_hyperloglog -lduckdb_mbedtls -lduckdb_miniz -lduckdb_pg_query -lduckdb_re2 -lduckdb_skiplistlib -lduckdb_utf8proc -lduckdb_yyjson -lduckdb_zstd -lc++"
-          - platform: "linux-amd64"
-            flags: "-lduckdb_static -lduckdb_generated_extension_loader -lautocomplete_extension -lcore_functions_extension -licu_extension -ljson_extension -lparquet_extension -ltpcds_extension -ltpch_extension -lduckdb_fastpforlib -lduckdb_fmt -lduckdb_fsst -lduckdb_hyperloglog -lduckdb_mbedtls -lduckdb_miniz -lduckdb_pg_query -lduckdb_re2 -lduckdb_skiplistlib -lduckdb_utf8proc -lduckdb_yyjson -lduckdb_zstd -lstdc++ -lm -ldl"
-          - platform: "linux-arm64"
-            flags: "-lduckdb_static -lduckdb_generated_extension_loader -lautocomplete_extension -lcore_functions_extension -licu_extension -ljson_extension -lparquet_extension -ltpcds_extension -ltpch_extension -lduckdb_fastpforlib -lduckdb_fmt -lduckdb_fsst -lduckdb_hyperloglog -lduckdb_mbedtls -lduckdb_miniz -lduckdb_pg_query -lduckdb_re2 -lduckdb_skiplistlib -lduckdb_utf8proc -lduckdb_yyjson -lduckdb_zstd -lstdc++ -lm -ldl"
       fail-fast: false
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
-          go-version: ${{ matrix.version }}
+          go-version-file: go.mod
       - name: Test ${{ matrix.platform }}
-        run: |
-          CGO_ENABLED=1 CGO_LDFLAGS="${{ matrix.flags }} -L${SRCDIR}lib/${{ matrix.platform }}/" go test -tags=duckdb_use_static_lib
-          CGO_ENABLED=1 CGO_LDFLAGS="${{ matrix.flags }} -L${SRCDIR}lib/${{ matrix.platform }}/" go test -tags=duckdb_use_static_lib,debug_bindings
-          CGO_ENABLED=1 CGO_LDFLAGS="${{ matrix.flags }} -L${SRCDIR}lib/${{ matrix.platform }}/" go test -tags=duckdb_use_static_lib,debug_bindings,duckdb_arrow
+        run: make test.static

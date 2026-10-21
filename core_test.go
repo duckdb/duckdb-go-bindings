@@ -1,6 +1,8 @@
 package duckdb_go_bindings
 
 import (
+	"fmt"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -37,6 +39,33 @@ func TestLibraryVersion(t *testing.T) {
 	defer VerifyAllocationCounters()
 	v := LibraryVersion()
 	require.NotEmpty(t, v)
+	if expected := os.Getenv("DUCKDB_VERSION"); expected != "" {
+		require.Equal(t, expected, v)
+	}
+}
+
+func TestLinkedSourceID(t *testing.T) {
+	expectedSHA := os.Getenv("DUCKDB_SHA")
+	if expectedSHA == "" {
+		t.Skip("Set DUCKDB_SHA to check the linked source ID")
+	}
+	require.Regexp(t, `^[0-9a-f]{40}$`, expectedSHA, "DUCKDB_SHA must be a full lowercase hexadecimal commit SHA")
+
+	conn := openTestConnection(t)
+
+	// source_id is a commit prefix. Report it if it doesn't match the requested build.
+	query := fmt.Sprintf(`
+		SELECT CASE
+			WHEN length(source_id) >= 7 AND starts_with('%[1]s', lower(source_id))
+			THEN 1
+			ELSE error('linked DuckDB reports source_id ' || source_id || ', expected a prefix of %[1]s')
+		END
+		FROM pragma_version()
+	`, expectedSHA)
+	var result Result
+	defer DestroyResult(&result)
+	require.Equal(t, StateSuccess, Query(conn, query, &result), ResultError(&result))
+	require.Equal(t, int64(1), ValueInt64(&result, 0, 0))
 }
 
 func TestGeometryLogicalType(t *testing.T) {

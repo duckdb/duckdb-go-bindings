@@ -54,6 +54,7 @@ const (
 	TypeTimeNS         Type = C.DUCKDB_TYPE_TIME_NS
 	TypeGeometry       Type = C.DUCKDB_TYPE_GEOMETRY
 	TypeVariant        Type = C.DUCKDB_TYPE_VARIANT
+	TypeTimestampTZNS  Type = C.DUCKDB_TYPE_TIMESTAMP_TZ_NS
 )
 
 // State wraps duckdb_state.
@@ -168,6 +169,8 @@ const (
 	ErrorTypeAutoload             ErrorType = C.DUCKDB_ERROR_AUTOLOAD
 	ErrorTypeSequence             ErrorType = C.DUCKDB_ERROR_SEQUENCE
 	ErrorTypeInvalidConfiguration ErrorType = C.DUCKDB_INVALID_CONFIGURATION
+	ErrorTypeDataCorruption       ErrorType = C.DUCKDB_ERROR_DATA_CORRUPTION
+	ErrorTypeResourceInUse        ErrorType = C.DUCKDB_ERROR_RESOURCE_IN_USE
 )
 
 // CastMode wraps duckdb_cast_mode.
