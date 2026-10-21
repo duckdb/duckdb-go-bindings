@@ -25,7 +25,7 @@ For `v1.5.0` the corresponding tagged release is `v0.10500.0`.
 
 ### Single module (v0.3.0+)
 
-Starting with v0.3.0, the module includes pre-built static libraries for all platforms. Simply import `github.com/duckdb/duckdb-go-bindings`.
+Starting with v0.3.0, the module selects pre-built static libraries for all platforms. Simply import `github.com/duckdb/duckdb-go-bindings`.
 
 | duckdb version | module version |
 | -------------- | -------------- |
@@ -58,7 +58,7 @@ Simply import the module in your Go project:
 import "github.com/duckdb/duckdb-go-bindings"
 ```
 
-The module includes pre-built static libraries for all supported platforms:
+The module selects pre-built static libraries for all supported platforms:
 
 - darwin-amd64
 - darwin-arm64
@@ -68,48 +68,146 @@ The module includes pre-built static libraries for all supported platforms:
 
 Platform detection and linking is handled automatically through cgo directives. `CGO_ENABLED=1` is required, and your system needs a C compiler.
 
-## Local Development
+## Testing
 
-To develop locally, copy the workspace template file:
+With Go, a C/C++ compiler and Make installed, run:
 
 ```bash
-cp go.work.dev go.work
+make test
 ```
 
-This sets up Go workspaces to use the local lib/\* submodules instead of fetching from the module proxy.
+This uses the native module proxy configured in `duckdb-release.json`, checks
+the linked DuckDB version and source ID, runs the default and debug/Arrow tests,
+and verifies the module cache. No bucket credentials are required.
+
+The test targets run `scripts/test.sh`, which also runs directly from the
+repository root with `prebuilt` (the default), `static`, `dynamic` or
+`packaged` (used by `make update.libs`).
+
+## Updating native libraries
+
+The native libraries are published as one Go module per platform, outside this
+repository: their static archives exceed GitHub's file size limit.
+`duckdb-release.json` pins the DuckDB build, native module version, upstream
+tarball checksums and publication origin.
+
+Only a new DuckDB build needs this process. Releases with code changes only bump
+the root module's patch version, e.g. to `v0.20000.1`, and keep the native
+module pins.
+
+To update, change the pins on a branch, then update either in GitHub Actions or
+locally. Either way, open a pull request for the branch as usual, and tag the
+root module after merge.
+
+### In GitHub Actions
+
+The branch must be in this repository, not a fork: the workflow uses the
+repository's bucket secrets, which GitHub doesn't pass to forks. Run the
+**Update Native Libraries** workflow on the branch. It:
+
+1. packages all five native modules in `$LIB_WORK/modules`,
+2. updates the header, platform imports and `go.mod`/`go.sum` to use them, and
+   runs `scripts/test.sh packaged` against that local file proxy,
+3. pushes those changes to the branch as a "Pin native modules" commit,
+4. uploads the modules and lists the destination in the job log, also after a
+   failed or partial upload, and
+5. starts the Tests workflow on the pin commit.
+
+The push comes before the upload, so a rejected push publishes nothing, and a
+failed test leaves the version unpublished for another attempt. These tests only
+link the runner's platform, linux-amd64. The Tests workflow is the first to link
+the other platforms, after the upload, so a failure there needs a new native
+module version.
+
+The workflow refuses to run on the default branch. It installs rclone v1.75.2
+with `AnimMouse/setup-rclone` v1.12.0 and defines an S3 remote named `remote`
+with `RCLONE_CONFIG_REMOTE_*` environment variables, only for the steps that use
+the bucket. Their credentials come from three repository secrets, for an R2 API
+token with Object Read & Write permission on the bucket:
+
+| Secret                               | Value                                           |
+| ------------------------------------ | ----------------------------------------------- |
+| `DUCKDB_GO_BUCKET_ACCESS_KEY_ID`     | the token's access key ID                       |
+| `DUCKDB_GO_BUCKET_SECRET_ACCESS_KEY` | the token's secret access key                   |
+| `DUCKDB_GO_BUCKET_ENDPOINT_URL_S3`   | `https://<account ID>.r2.cloudflarestorage.com` |
+
+A bucket in the EU jurisdiction needs the
+`https://<account ID>.eu.r2.cloudflarestorage.com` endpoint.
+
+### Locally
+
+With a remote for the bucket in your rclone config, run the same steps yourself:
+
+```bash
+make update.libs   # package, pin and test
+git commit -am "Pin native modules $(jq -r .version duckdb-release.json)"
+LIB_DESTINATION=<remote>:duckdb-go make publish.libs
+git push
+```
+
+`LIB_DESTINATION` takes any rclone remote. Set `RCLONE_CONFIG` to use a config
+file other than rclone's default, and `RCLONE` to run an rclone that isn't on
+`PATH`. Use rclone v1.75.2 or newer, as the workflow does. Older versions log
+`Don't know how to set key "If-None-Match"` and upload without that header,
+which turns off the bucket's own refusal to overwrite existing files.
+
+The workflow's remote, as a config section:
+
+```ini
+[remote]
+type = s3
+provider = Cloudflare
+access_key_id = <access key ID>
+secret_access_key = <secret access key>
+endpoint = https://<account ID>.r2.cloudflarestorage.com
+region = auto
+no_check_bucket = true
+```
+
+`no_check_bucket` stops rclone from checking or creating the bucket, which a
+token scoped to the bucket can't do.
+
+### Rules for both
+
+Use the project's Go version for publishing, and a new native module version
+whenever previously published bytes change, also after a partial upload:
+packaging refuses versions that already exist at the origin. Update the bindings
+for any C API changes.
+
+Downloads and packaged modules stay in `LIB_WORK`, outside the checkout
+(default: `duckdb-go-libraries` in the system's temporary directory).
+`go run ./internal/cmd/brood env` shows the resolved paths. For DuckDB 1.4 LTS,
+use the `v1.4-andium` branch's release process.
 
 ## Nightly artifact validation
 
-The `Nightly` workflow accepts a full DuckDB commit SHA and downloads the
-matching Linux, macOS, and Windows artifacts from DuckDB's staging endpoint. It
-compiles the bindings against the artifact header, summarizes the resulting
-header diff, exercises both static and dynamic linking, verifies the linked
-source ID, and installs and loads `httpfs` from a clean extension directory.
+The `Nightly` workflow accepts a full DuckDB commit SHA and downloads matching
+v2 staging artifacts. It compiles against their header, shows the header diff,
+exercises static and dynamic linking, verifies the linked source ID, and loads
+`httpfs` from a clean extension directory. It uses an external scratch directory
+and a local workspace replacement, without publishing anything.
 
-## Releasing a new DuckDB version
-
-Prepare normal releases from `main`. For LTS releases that stay on DuckDB 1.4 Andium, use the `v1.4-andium` branch.
-
-1. Create a new branch and update the `DUCKDB_VERSION` in the `Makefile`.
-2. Invoke the `Fetch and Push Libs` workflow on the new branch (it commits fetched libs to the branch; it does not tag).
-3. If the header (`duckdb.h`) has changes, add all changes (new types, functions, etc.) to the bindings.
-4. Open a PR.
-5. Wait for all tests to pass.
-6. Merge the PR into `main` (direct pushes to `main` are not allowed).
-7. Publish tags using the release script (re-entrant, safe to run multiple times):
+The same targets work locally for an alternate build:
 
 ```bash
-./scripts/release.sh v0.10502.0           # pushes to 'origin'
-./scripts/release.sh v0.10502.0 upstream  # pushes to custom remote
+export BASE_URL="https://duckdb-staging.duckdb.org/<sha-prefix>/<version>/duckdb/duckdb/github_release"
+export DUCKDB_VERSION="<version>" DUCKDB_SHA="<full-sha>"
+make use.libs
+make test TAGS=duckdb_nightly
+make test.dynamic TAGS=duckdb_nightly
 ```
 
-The script handles:
+`use.libs` installs the build's header and writes an ignored `go.work` selecting
+its native module. `BASE_URL` overrides the manifest's upstream URL and drops
+its checksum pins, so only the version and source ID supplied through
+`DUCKDB_VERSION` and `DUCKDB_SHA` are checked. To return to the pinned build:
 
-- Tagging and pushing lib/\* submodules
-- Updating root module deps (stops for PR if changes needed)
-- Tagging and pushing root module
+```bash
+make unuse.libs
+unset BASE_URL DUCKDB_VERSION DUCKDB_SHA
+```
 
-Run it again after merging the deps PR to complete the release.
+`unuse.libs` removes the local workspace and restores the pinned header.
 
 ## Build Configuration
 
