@@ -8,31 +8,31 @@
     "darwin-amd64": {
       "static": "osx-amd64",
       "shared": "osx-universal",
-      "sha256": "7e6101ddc8de73e8dcc66f790e658e07891165d026992b40ceba20e50b01f8ec",
+      "static_sha256": "7e6101ddc8de73e8dcc66f790e658e07891165d026992b40ceba20e50b01f8ec",
       "shared_sha256": "14cd63180614cfd961f7959146ecd9087527ff20b67311efdc3fa1c29c18204d"
     },
     "darwin-arm64": {
       "static": "osx-arm64",
       "shared": "osx-universal",
-      "sha256": "c3a571e6d4a0da97534c631df463ab13c07f8cf78049625f5df936b7beaab9ce",
+      "static_sha256": "c3a571e6d4a0da97534c631df463ab13c07f8cf78049625f5df936b7beaab9ce",
       "shared_sha256": "14cd63180614cfd961f7959146ecd9087527ff20b67311efdc3fa1c29c18204d"
     },
     "linux-amd64": {
       "static": "linux-amd64",
       "shared": "linux-amd64",
-      "sha256": "112d62c980f5447cd303a70b3dacbc09acd41ccb4ef6d154e8629f543a0f8568",
+      "static_sha256": "112d62c980f5447cd303a70b3dacbc09acd41ccb4ef6d154e8629f543a0f8568",
       "shared_sha256": "993ad89e7dfca66cd6da994c2cad090c2fc160ddf9f550498a098ab4bb13cfb1"
     },
     "linux-arm64": {
       "static": "linux-arm64",
       "shared": "linux-arm64",
-      "sha256": "8171b4842e68a85b2e82b342d3bf7b542a88fd6666e0c18438d7b459012494ee",
+      "static_sha256": "8171b4842e68a85b2e82b342d3bf7b542a88fd6666e0c18438d7b459012494ee",
       "shared_sha256": "c60eecf91143ca6bbac55c4f4d40dc22520488b0ac257c86e0fe9a2b451cf2b7"
     },
     "windows-amd64": {
       "static": "windows-mingw",
       "shared": "windows-amd64",
-      "sha256": "b900706bcd5501b94c90b86a23b941a18fa1a73094d414f5ca7e7637cfd9ceea",
+      "static_sha256": "b900706bcd5501b94c90b86a23b941a18fa1a73094d414f5ca7e7637cfd9ceea",
       "shared_sha256": "2b83169128239de5f45fe21de80f99bf436e53aa4bb24020dd951a1ba8d4b95f"
     }
   },

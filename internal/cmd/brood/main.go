@@ -42,7 +42,7 @@ type manifest struct {
 type artifact struct {
 	Static       string `json:"static"`
 	Shared       string `json:"shared"`
-	SHA256       string `json:"sha256"`
+	StaticSHA256 string `json:"static_sha256"`
 	SharedSHA256 string `json:"shared_sha256"`
 }
 
@@ -96,7 +96,7 @@ func load() *release {
 	if override := os.Getenv("BASE_URL"); override != "" {
 		r.BaseURL, r.DuckDBVersion, r.Source = override, "", ""
 		for platform, a := range r.Platforms {
-			a.SHA256, a.SharedSHA256 = "", ""
+			a.StaticSHA256, a.SharedSHA256 = "", ""
 			r.Platforms[platform] = a
 		}
 	}
@@ -198,7 +198,7 @@ func (r *release) use() {
 // LIB_WORK/modules.
 func (r *release) packageModules() {
 	for _, platform := range r.platforms {
-		if r.Platforms[platform].SHA256 == "" {
+		if r.Platforms[platform].StaticSHA256 == "" {
 			fail("%s: packaging requires a pinned checksum; unset BASE_URL", platform)
 		}
 		// Never replace source pins with repackaged bytes of a published version.

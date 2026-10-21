@@ -22,7 +22,7 @@ func TestLoadOverride(t *testing.T) {
 	r := fixtureRelease(t, "linux-amd64")
 	r.Origin = "https://example.com"
 	r.DuckDBVersion, r.Source = "v2.0.0-pin", "pinned-source"
-	r.Platforms["linux-amd64"] = artifact{SHA256: "static-pin", SharedSHA256: "shared-pin"}
+	r.Platforms["linux-amd64"] = artifact{StaticSHA256: "static-pin", SharedSHA256: "shared-pin"}
 	writeJSON(manifestFile, r.manifest)
 	t.Setenv("LIB_WORK", r.work)
 	t.Setenv("PLATFORM", "linux-amd64")
@@ -43,7 +43,7 @@ func TestLoadOverride(t *testing.T) {
 			if tc.baseURL == "" {
 				require.Equal(t, r.Platforms["linux-amd64"], pins)
 			} else {
-				require.Empty(t, pins.SHA256+pins.SharedSHA256, "an override drops the checksum pins")
+				require.Empty(t, pins.StaticSHA256+pins.SharedSHA256, "an override drops the checksum pins")
 			}
 			env := got.testEnv()
 			require.Equal(t, tc.wantVersion, env["DUCKDB_VERSION"])
