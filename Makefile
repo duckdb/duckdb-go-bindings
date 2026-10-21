@@ -1,11 +1,5 @@
 BROOD=GOWORK=off go run ./internal/cmd/brood
 
-fetch.static.libs:
-	$(BROOD) fetch
-
-fetch.dynamic.lib:
-	$(BROOD) fetch-shared
-
 # Stage a custom build, install its header and select it through go.work.
 use.libs:
 	$(BROOD) use
@@ -32,4 +26,4 @@ test.static:
 test.dynamic:
 	./scripts/test.sh dynamic
 
-.PHONY: fetch.static.libs fetch.dynamic.lib use.libs unuse.libs update.libs publish.libs test test.static test.dynamic
+.PHONY: use.libs unuse.libs update.libs publish.libs test test.static test.dynamic
