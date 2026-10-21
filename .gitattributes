@@ -1,0 +1,2 @@
+# Generated files are LF on every platform, so their goldens must be too.
+internal/cmd/brood/testdata/*.golden text eol=lf
