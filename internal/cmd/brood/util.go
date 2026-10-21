@@ -56,10 +56,14 @@ func writeFrom(path string, r io.Reader) {
 	check(f.Close())
 }
 
+// closeRead closes a file or response body that was only read from, so a close
+// error can't lose data.
+func closeRead(c io.Closer) { _ = c.Close() }
+
 func copyFile(src, dst string) {
 	f, err := os.Open(src)
 	check(err)
-	defer f.Close()
+	defer closeRead(f)
 	writeFrom(dst, f)
 }
 
@@ -86,7 +90,7 @@ func sha256File(path string) string {
 		return ""
 	}
 	check(err)
-	defer f.Close()
+	defer closeRead(f)
 	h := sha256.New()
 	_, err = io.Copy(h, f)
 	check(err)
@@ -140,7 +144,7 @@ func get(url string) *http.Response {
 		if code < 500 && code != http.StatusRequestTimeout && code != http.StatusTooManyRequests {
 			return resp
 		}
-		resp.Body.Close()
+		closeRead(resp.Body)
 		err = fmt.Errorf("GET %s: %s", url, resp.Status)
 	}
 	check(err)
@@ -149,13 +153,13 @@ func get(url string) *http.Response {
 
 func httpStatus(url string) int {
 	resp := get(url)
-	resp.Body.Close()
+	closeRead(resp.Body)
 	return resp.StatusCode
 }
 
 func download(url, path string) {
 	resp := get(url)
-	defer resp.Body.Close()
+	defer closeRead(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		fail("GET %s: %s", url, resp.Status)
 	}

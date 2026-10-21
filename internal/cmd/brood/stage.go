@@ -185,7 +185,7 @@ func extract(archive, dir string, names []string) {
 	mkdir(dir)
 	f, err := os.Open(archive)
 	check(err)
-	defer f.Close()
+	defer closeRead(f)
 	gz, err := gzip.NewReader(f)
 	if err != nil {
 		fail("%s: %v", archive, err)
