@@ -138,17 +138,15 @@ root module after merge.
 
 ### In GitHub Actions
 
-The branch must be in this repository, not a fork: the workflow uses the
-repository's bucket secrets, which GitHub doesn't pass to forks. Run the
-**Update Native Libraries** workflow on the branch. It:
+Run the **Update Native Libraries** workflow on the branch. The branch must be
+in this repository: the workflow uploads with the repository's bucket secrets,
+which GitHub doesn't pass to forks. It:
 
-1. packages all five native modules in `$LIB_WORK/modules`,
-2. updates the header, platform imports and `go.mod`/`go.sum` to use them, and
-   runs `scripts/test.sh packaged` against that local file proxy,
-3. pushes those changes to the branch as a "Pin native modules" commit,
-4. uploads the modules and lists the destination in the job log, also after a
-   failed or partial upload, and
-5. starts the Tests workflow on the pin commit.
+1. packages all five native modules and tests them before publishing anything,
+2. pushes the updated header, platform imports and `go.mod`/`go.sum` to the
+   branch as a "Pin native modules" commit,
+3. uploads the modules and lists the bucket in the job log, and
+4. starts the Tests workflow on the pin commit.
 
 The push comes before the upload, so a rejected push publishes nothing, and a
 failed test leaves the version unpublished for another attempt. These tests only
@@ -156,11 +154,9 @@ link the runner's platform, linux-amd64. The Tests workflow is the first to link
 the other platforms, after the upload, so a failure there needs a new native
 module version.
 
-The workflow refuses to run on the default branch. It installs rclone v1.75.2
-with `AnimMouse/setup-rclone` v1.12.0 and defines an S3 remote named `remote`
-with `RCLONE_CONFIG_REMOTE_*` environment variables, only for the steps that use
-the bucket. Their credentials come from three repository secrets, for an R2 API
-token with Object Read & Write permission on the bucket:
+The workflow refuses to run in a fork or on the default branch. It needs three
+repository secrets for an R2 API token with Object Read & Write permission on
+the bucket:
 
 | Secret                               | Value                                           |
 | ------------------------------------ | ----------------------------------------------- |
@@ -173,7 +169,7 @@ A bucket in the EU jurisdiction needs the
 
 ### Locally
 
-With a remote for the bucket in your rclone config, run the same steps yourself:
+With an rclone remote for the bucket, run the same steps yourself:
 
 ```bash
 make update.libs   # package, pin and test
@@ -182,27 +178,8 @@ LIB_DESTINATION=<remote>:duckdb-go make publish.libs
 git push
 ```
 
-`LIB_DESTINATION` takes any rclone remote. Set `RCLONE_CONFIG` to use a config
-file other than rclone's default, and `RCLONE` to run an rclone that isn't on
-`PATH`. Use rclone v1.75.2 or newer, as the workflow does. Older versions log
-`Don't know how to set key "If-None-Match"` and upload without that header,
-which turns off the bucket's own refusal to overwrite existing files.
-
-The workflow's remote, as a config section:
-
-```ini
-[remote]
-type = s3
-provider = Cloudflare
-access_key_id = <access key ID>
-secret_access_key = <secret access key>
-endpoint = https://<account ID>.r2.cloudflarestorage.com
-region = auto
-no_check_bucket = true
-```
-
-`no_check_bucket` stops rclone from checking or creating the bucket, which a
-token scoped to the bucket can't do.
+Use a current rclone: older versions silently upload without the bucket's
+protection against overwriting published files.
 
 ### Rules for both
 
