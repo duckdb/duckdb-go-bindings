@@ -17,6 +17,13 @@ jobs:
     env:
       LIB_DESTINATION: remote:duckdb-go
     steps:
+      # Forks don't get the bucket secrets, so a run there would push a pin for a
+      # version it can't publish.
+      - name: Require this repository
+        if: github.repository != 'duckdb/duckdb-go-bindings'
+        run: |
+          echo "::error::Run this in duckdb/duckdb-go-bindings: forks don't get the bucket secrets."
+          exit 1
       - name: Require a branch other than the default
         if: github.ref_type != 'branch' || github.ref_name == github.event.repository.default_branch
         run: |
@@ -28,6 +35,8 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
+          # Publish from a fresh module and build cache, not one restored from
+          # other runs.
           cache: false
       - name: Install rclone
         id: rclone

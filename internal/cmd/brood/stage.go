@@ -93,7 +93,7 @@ func (r *release) rootPrebuilt(platform string) (name string, data []byte) {
 func (r *release) stage(platform string) {
 	a := r.Platforms[platform]
 	url := r.BaseURL + "/duckdb-static-libs-" + a.Static + ".tar.gz"
-	archive, digest := r.archive(url, a.SHA256)
+	archive, digest := r.archive(url, a.StaticSHA256)
 
 	dest := r.native(platform)
 	members := []string{"duckdb.h", "duckdb_static_extension.h", "libduckdb_static.a"}
@@ -185,7 +185,7 @@ func extract(archive, dir string, names []string) {
 	mkdir(dir)
 	f, err := os.Open(archive)
 	check(err)
-	defer f.Close()
+	defer closeRead(f)
 	gz, err := gzip.NewReader(f)
 	if err != nil {
 		fail("%s: %v", archive, err)
