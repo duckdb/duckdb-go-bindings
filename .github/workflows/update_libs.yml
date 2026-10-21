@@ -35,6 +35,8 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
+          # Publish from a fresh module and build cache, not one restored from
+          # other runs.
           cache: false
       - name: Install rclone
         id: rclone
