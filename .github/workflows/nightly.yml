@@ -1,13 +1,16 @@
 name: Nightly
-run-name: Nightly - ${{ inputs.duckdb-sha }}
+run-name: Nightly - ${{ inputs.duckdb-sha }} (${{ inputs.duckdb-version }})
 
 on:
-  # Triggered from DuckDB's NotifyExternalRepositories workflow.
-  # See https://github.com/duckdb/duckdb/pull/24720 for details.
+  # Dispatched by duckdb/duckdb-workflow-trigger on core_ready.
   workflow_dispatch:
     inputs:
       duckdb-sha:
-        description: DuckDB commit SHA to test against
+        description: Full lowercase DuckDB commit SHA of the staging build to test
+        required: true
+        type: string
+      duckdb-version:
+        description: DuckDB version label of the staging build (e.g. v2.0.0-alpha39998)
         required: true
         type: string
 
@@ -42,6 +45,7 @@ jobs:
     timeout-minutes: 15
     env:
       DUCKDB_SHA: ${{ inputs.duckdb-sha }}
+      DUCKDB_VERSION: ${{ inputs.duckdb-version }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -51,21 +55,17 @@ jobs:
       - name: Install nightly artifacts
         id: artifacts
         run: |
-          # macOS runners use Bash 3.2, which lacks ${value,,}. Require the
-          # canonical lowercase form instead of normalizing the input.
+          # Prevent dispatch inputs from injecting extra variables through GITHUB_ENV.
           if [[ ! "$DUCKDB_SHA" =~ ^[0-9a-f]{40}$ ]]; then
             echo "::error::duckdb-sha must be a full lowercase hexadecimal commit SHA"
             exit 1
           fi
-
-          staging_key=${DUCKDB_SHA:0:10}
-          staging="https://duckdb-staging.duckdb.org/$staging_key"
-          version=$(curl -fLsS --retry 3 "$staging/latest_alpha_version.txt")
-          base_url="$staging/$version/duckdb/duckdb/github_release"
-          echo "Installing staging artifacts from $base_url"
-
+          if [[ ! "$DUCKDB_VERSION" =~ ^[0-9A-Za-z][0-9A-Za-z._+-]*$ ]]; then
+            echo "::error::duckdb-version contains unsupported characters"
+            exit 1
+          fi
+          base_url="https://duckdb-staging.duckdb.org/${DUCKDB_SHA:0:10}/$DUCKDB_VERSION/duckdb/duckdb/github_release"
           echo "BASE_URL=$base_url" >> "$GITHUB_ENV"
-          echo "DUCKDB_VERSION=$version" >> "$GITHUB_ENV"
           make use.libs BASE_URL="$base_url"
 
       - name: Show nightly header diff
