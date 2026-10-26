@@ -195,11 +195,16 @@ use the `v1.4-andium` branch's release process.
 
 ## Nightly artifact validation
 
-The `Nightly` workflow accepts a full DuckDB commit SHA and downloads matching
-v2 staging artifacts. It compiles against their header, shows the header diff,
-exercises static and dynamic linking, verifies the linked source ID, and loads
-`httpfs` from a clean extension directory. It uses an external scratch directory
-and a local workspace replacement, without publishing anything.
+The `Nightly` workflow tests the v2 bindings against DuckDB 2.x nightly builds.
+It receives `duckdb-sha` and `duckdb-version` from
+`duckdb/duckdb-workflow-trigger` on `core_ready`. Manual runs require the same
+inputs: a full lowercase commit SHA and the matching staging version label.
+It downloads that exact build.
+
+It compiles against its header, shows the header diff, exercises static and
+dynamic linking, verifies the linked source ID, and loads `httpfs` from a clean
+extension directory. It uses an external scratch directory and a local
+workspace replacement, without publishing anything.
 
 The same targets work locally for an alternate build:
 
