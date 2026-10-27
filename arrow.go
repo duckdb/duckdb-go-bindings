@@ -134,6 +134,7 @@ func SchemaFromArrow(conn Connection, schema *arrow.Schema) (ArrowConvertedSchem
 }
 
 // DataChunkFromArrow converts an Arrow RecordBatch to a DuckDB DataChunk using the provided Connection and ArrowConvertedSchema.
+// rec.Schema() must be compatible with the Arrow schema used to create the provided ArrowConvertedSchema.
 // The returned DataChunk must be destroyed with DestroyDataChunk.
 // The returned ErrorData must be checked for errors and destroyed with DestroyErrorData.
 func DataChunkFromArrow(conn Connection, rec arrow.RecordBatch, schema ArrowConvertedSchema) (DataChunk, ErrorData) {
@@ -142,12 +143,7 @@ func DataChunkFromArrow(conn Connection, rec arrow.RecordBatch, schema ArrowConv
 		cdata.ReleaseCArrowArray((*cdata.CArrowArray)(arr))
 		C.free(arr)
 	}()
-	arrs := C.calloc(1, C.sizeof_struct_ArrowSchema)
-	defer func() {
-		cdata.ReleaseCArrowSchema((*cdata.CArrowSchema)(arrs))
-		C.free(arrs)
-	}()
-	cdata.ExportArrowRecordBatch(rec, (*cdata.CArrowArray)(arr), (*cdata.CArrowSchema)(arrs))
+	cdata.ExportArrowRecordBatch(rec, (*cdata.CArrowArray)(arr), nil)
 
 	var chunk C.duckdb_data_chunk
 	ed := C.duckdb_data_chunk_from_arrow(conn.data(), (*C.struct_ArrowArray)(arr), schema.data(), &chunk)
