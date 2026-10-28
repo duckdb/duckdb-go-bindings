@@ -11,19 +11,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func requireArrowConvertedSchema(t *testing.T, conn Connection, schema *arrow.Schema) ArrowConvertedSchema {
-	t.Helper()
+func requireArrowConvertedSchema(tb testing.TB, conn Connection, schema *arrow.Schema) ArrowConvertedSchema {
+	tb.Helper()
 
 	converted, ed := SchemaFromArrow(conn, schema)
 	if ErrorDataHasError(ed) {
 		msg := ErrorDataMessage(ed)
 		DestroyErrorData(&ed)
 		DestroyArrowConvertedSchema(&converted)
-		t.Fatalf("SchemaFromArrow failed: %s", msg)
+		tb.Fatalf("SchemaFromArrow failed: %s", msg)
 	}
 	DestroyErrorData(&ed)
 	if converted.Ptr == nil {
-		t.Fatal("SchemaFromArrow returned an empty converted schema")
+		tb.Fatal("SchemaFromArrow returned an empty converted schema")
 	}
 	return converted
 }
@@ -52,16 +52,18 @@ func requireArrowRoundTrip(
 	conn Connection,
 	options ArrowOptions,
 	converted ArrowConvertedSchema,
-	rec arrow.RecordBatch,
+	input arrow.RecordBatch,
+	expected arrow.RecordBatch,
 ) {
 	t.Helper()
 
-	chunk := requireDataChunkFromArrow(t, conn, rec, converted)
+	chunk := requireDataChunkFromArrow(t, conn, input, converted)
 	defer DestroyDataChunk(&chunk)
-	require.Equal(t, IdxT(rec.NumCols()), DataChunkGetColumnCount(chunk))
-	require.Equal(t, IdxT(rec.NumRows()), DataChunkGetSize(chunk))
+	require.Equal(t, IdxT(input.NumCols()), DataChunkGetColumnCount(chunk))
+	require.Equal(t, IdxT(input.NumRows()), DataChunkGetSize(chunk))
 
-	out, ed := DataChunkToArrowArray(options, rec.Schema(), chunk)
+	// Import with the expected schema so dictionary inputs can be compared to plain values.
+	out, ed := DataChunkToArrowArray(options, expected.Schema(), chunk)
 	if ErrorDataHasError(ed) {
 		msg := ErrorDataMessage(ed)
 		DestroyErrorData(&ed)
@@ -76,103 +78,11 @@ func requireArrowRoundTrip(
 	}
 	defer out.Release()
 
-	require.Equal(t, rec.NumCols(), out.NumCols())
-	require.Equal(t, rec.NumRows(), out.NumRows())
-	for i := 0; i < int(rec.NumCols()); i++ {
-		require.True(t, array.Equal(rec.Column(i), out.Column(i)), "column %d did not round-trip", i)
+	require.Equal(t, expected.NumCols(), out.NumCols())
+	require.Equal(t, expected.NumRows(), out.NumRows())
+	for i := 0; i < int(expected.NumCols()); i++ {
+		require.True(t, array.Equal(expected.Column(i), out.Column(i)), "column %d did not round-trip", i)
 	}
-}
-
-func requireLogicalStringValues(t *testing.T, values arrow.Array, expected []string, valid []bool) {
-	t.Helper()
-
-	require.Len(t, valid, len(expected))
-	require.Equal(t, len(expected), values.Len())
-	for i, want := range expected {
-		require.Equal(t, !valid[i], values.IsNull(i), "row %d null validity", i)
-		if !valid[i] {
-			continue
-		}
-
-		var got string
-		switch values := values.(type) {
-		case *array.String:
-			got = values.Value(i)
-		case *array.Dictionary:
-			switch values.Indices().DataType().ID() {
-			case arrow.INT8, arrow.UINT8,
-				arrow.INT16, arrow.UINT16,
-				arrow.INT32, arrow.UINT32,
-				arrow.INT64, arrow.UINT64:
-			default:
-				t.Fatalf("unsupported dictionary index type %s", values.Indices().DataType())
-			}
-			dictionary, ok := values.Dictionary().(*array.String)
-			if !ok {
-				t.Fatalf("unsupported dictionary value array %T", values.Dictionary())
-			}
-			index := values.GetValueIndex(i)
-			if index < 0 || index >= dictionary.Len() {
-				t.Fatalf("dictionary index %d at row %d is outside [0, %d)", index, i, dictionary.Len())
-			}
-			if dictionary.IsNull(index) {
-				t.Fatalf("dictionary value at index %d for row %d is null", index, i)
-			}
-			got = dictionary.Value(index)
-		default:
-			t.Fatalf("unsupported logical string array %T", values)
-		}
-		require.Equal(t, want, got, "row %d value", i)
-	}
-}
-
-func requireDictionaryStringRoundTrip(
-	t *testing.T,
-	conn Connection,
-	options ArrowOptions,
-	converted ArrowConvertedSchema,
-	rec arrow.RecordBatch,
-	expected []string,
-	valid []bool,
-) {
-	t.Helper()
-
-	chunk := requireDataChunkFromArrow(t, conn, rec, converted)
-	defer DestroyDataChunk(&chunk)
-	require.Equal(t, IdxT(1), DataChunkGetColumnCount(chunk))
-	require.Equal(t, IdxT(rec.NumRows()), DataChunkGetSize(chunk))
-
-	logicalType := VectorGetColumnType(DataChunkGetVector(chunk, 0))
-	defer DestroyLogicalType(&logicalType)
-	outputSchema, ed := NewArrowSchema(options, []LogicalType{logicalType}, []string{"label"})
-	if ErrorDataHasError(ed) {
-		msg := ErrorDataMessage(ed)
-		DestroyErrorData(&ed)
-		t.Fatalf("NewArrowSchema failed: %s", msg)
-	}
-	DestroyErrorData(&ed)
-	if outputSchema == nil {
-		t.Fatal("NewArrowSchema returned an empty schema")
-	}
-
-	out, ed := DataChunkToArrowArray(options, outputSchema, chunk)
-	if ErrorDataHasError(ed) {
-		msg := ErrorDataMessage(ed)
-		DestroyErrorData(&ed)
-		if out != nil {
-			out.Release()
-		}
-		t.Fatalf("DataChunkToArrowArray failed: %s", msg)
-	}
-	DestroyErrorData(&ed)
-	if out == nil {
-		t.Fatal("DataChunkToArrowArray returned an empty record batch")
-	}
-	defer out.Release()
-
-	require.Equal(t, int64(1), out.NumCols())
-	require.Equal(t, rec.NumRows(), out.NumRows())
-	requireLogicalStringValues(t, out.Column(0), expected, valid)
 }
 
 func newPrimitiveStringRecord(
@@ -215,6 +125,13 @@ func newDictionaryStringRecord(
 	return array.NewRecordBatch(schema, []arrow.Array{dictionary}, int64(len(values)))
 }
 
+func newStringRecord(schema *arrow.Schema, values []string, valid []bool) arrow.RecordBatch {
+	builder := array.NewRecordBuilder(memory.DefaultAllocator, schema)
+	defer builder.Release()
+	builder.Field(0).(*array.StringBuilder).AppendValues(values, valid)
+	return builder.NewRecordBatch()
+}
+
 func TestDataChunkFromArrowCachedSchemaPrimitiveAndString(t *testing.T) {
 	conn := openTestConnection(t)
 	schema := arrow.NewSchema([]arrow.Field{
@@ -244,8 +161,8 @@ func TestDataChunkFromArrowCachedSchemaPrimitiveAndString(t *testing.T) {
 	ConnectionGetArrowOptions(conn, &options)
 	defer DestroyArrowOptions(&options)
 
-	requireArrowRoundTrip(t, conn, options, converted, rec1)
-	requireArrowRoundTrip(t, conn, options, converted, rec2)
+	requireArrowRoundTrip(t, conn, options, converted, rec1, rec1)
+	requireArrowRoundTrip(t, conn, options, converted, rec2, rec2)
 }
 
 func TestDataChunkFromArrowCachedSchemaNestedListAndStruct(t *testing.T) {
@@ -293,8 +210,8 @@ func TestDataChunkFromArrowCachedSchemaNestedListAndStruct(t *testing.T) {
 	ConnectionGetArrowOptions(conn, &options)
 	defer DestroyArrowOptions(&options)
 
-	requireArrowRoundTrip(t, conn, options, converted, rec1)
-	requireArrowRoundTrip(t, conn, options, converted, rec2)
+	requireArrowRoundTrip(t, conn, options, converted, rec1, rec1)
+	requireArrowRoundTrip(t, conn, options, converted, rec2, rec2)
 }
 
 func TestDataChunkFromArrowCachedSchemaDictionaryStrings(t *testing.T) {
@@ -306,24 +223,21 @@ func TestDataChunkFromArrowCachedSchemaDictionaryStrings(t *testing.T) {
 	schema := arrow.NewSchema([]arrow.Field{
 		{Name: "label", Type: dictionaryType, Nullable: true},
 	}, nil)
+	expectedSchema := arrow.NewSchema([]arrow.Field{
+		{Name: "label", Type: arrow.BinaryTypes.String, Nullable: true},
+	}, nil)
 	values1 := []string{"alpha", "beta", "alpha", ""}
 	valid1 := []bool{true, true, true, false}
-	rec1 := newDictionaryStringRecord(
-		t,
-		schema,
-		values1,
-		valid1,
-	)
+	rec1 := newDictionaryStringRecord(t, schema, values1, valid1)
 	defer rec1.Release()
+	expected1 := newStringRecord(expectedSchema, values1, valid1)
+	defer expected1.Release()
 	values2 := []string{"gamma", "", "gamma"}
 	valid2 := []bool{true, true, true}
-	rec2 := newDictionaryStringRecord(
-		t,
-		schema,
-		values2,
-		valid2,
-	)
+	rec2 := newDictionaryStringRecord(t, schema, values2, valid2)
 	defer rec2.Release()
+	expected2 := newStringRecord(expectedSchema, values2, valid2)
+	defer expected2.Release()
 
 	converted := requireArrowConvertedSchema(t, conn, schema)
 	defer DestroyArrowConvertedSchema(&converted)
@@ -331,8 +245,8 @@ func TestDataChunkFromArrowCachedSchemaDictionaryStrings(t *testing.T) {
 	ConnectionGetArrowOptions(conn, &options)
 	defer DestroyArrowOptions(&options)
 
-	requireDictionaryStringRoundTrip(t, conn, options, converted, rec1, values1, valid1)
-	requireDictionaryStringRoundTrip(t, conn, options, converted, rec2, values2, valid2)
+	requireArrowRoundTrip(t, conn, options, converted, rec1, expected1)
+	requireArrowRoundTrip(t, conn, options, converted, rec2, expected2)
 }
 
 func TestDataChunkFromArrowCachedSchemaEmptyThenNonEmpty(t *testing.T) {
@@ -358,8 +272,8 @@ func TestDataChunkFromArrowCachedSchemaEmptyThenNonEmpty(t *testing.T) {
 	ConnectionGetArrowOptions(conn, &options)
 	defer DestroyArrowOptions(&options)
 
-	requireArrowRoundTrip(t, conn, options, converted, empty)
-	requireArrowRoundTrip(t, conn, options, converted, nonEmpty)
+	requireArrowRoundTrip(t, conn, options, converted, empty, empty)
+	requireArrowRoundTrip(t, conn, options, converted, nonEmpty, nonEmpty)
 }
 
 func BenchmarkDataChunkFromArrowCachedSchema(b *testing.B) {
@@ -399,17 +313,7 @@ func BenchmarkDataChunkFromArrowCachedSchema(b *testing.B) {
 	})
 
 	_, conn := benchMustOpen(b)
-	converted, ed := SchemaFromArrow(conn, schema)
-	if ErrorDataHasError(ed) {
-		msg := ErrorDataMessage(ed)
-		DestroyErrorData(&ed)
-		DestroyArrowConvertedSchema(&converted)
-		b.Fatalf("SchemaFromArrow failed: %s", msg)
-	}
-	DestroyErrorData(&ed)
-	if converted.Ptr == nil {
-		b.Fatal("SchemaFromArrow returned an empty converted schema")
-	}
+	converted := requireArrowConvertedSchema(b, conn, schema)
 	b.Cleanup(func() { DestroyArrowConvertedSchema(&converted) })
 
 	const expectedRows = IdxT(4 * 256)
