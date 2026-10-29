@@ -42,8 +42,15 @@ func AppenderCreateExt(conn Connection, catalog string, schema string, table str
 }
 
 // AppenderCreateQuery wraps duckdb_appender_create_query.
+// columnNames may be nil or empty to use DuckDB's default column names.
+// Otherwise, its length must match types; a mismatch clears outAppender and returns StateError.
 // outAppender must be destroyed with AppenderDestroy.
 func AppenderCreateQuery(conn Connection, query string, types []LogicalType, tableName string, columnNames []string, outAppender *Appender) State {
+	if len(columnNames) != 0 && len(columnNames) != len(types) {
+		*outAppender = Appender{}
+		return StateError
+	}
+
 	cQuery := C.CString(query)
 	defer Free(unsafe.Pointer(cQuery))
 

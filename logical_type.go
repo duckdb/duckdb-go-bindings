@@ -51,8 +51,13 @@ func CreateMapType(key LogicalType, value LogicalType) LogicalType {
 }
 
 // CreateUnionType wraps duckdb_create_union_type.
+// If types and names have different lengths, it returns a LogicalType with a nil Ptr.
 // The return value must be destroyed with DestroyLogicalType.
 func CreateUnionType(types []LogicalType, names []string) LogicalType {
+	if len(types) != len(names) {
+		return LogicalType{}
+	}
+
 	typesPtr := allocLogicalTypes(types)
 	defer Free(unsafe.Pointer(typesPtr))
 
@@ -67,8 +72,13 @@ func CreateUnionType(types []LogicalType, names []string) LogicalType {
 }
 
 // CreateStructType wraps duckdb_create_struct_type.
+// If types and names have different lengths, it returns a LogicalType with a nil Ptr.
 // The return value must be destroyed with DestroyLogicalType.
 func CreateStructType(types []LogicalType, names []string) LogicalType {
+	if len(types) != len(names) {
+		return LogicalType{}
+	}
+
 	typesPtr := allocLogicalTypes(types)
 	defer Free(unsafe.Pointer(typesPtr))
 
