@@ -85,9 +85,9 @@ func allocNames(names []string) nameListAlloc {
 		blobSize += C.size_t(len(s)) + 1
 	}
 
-	arrMem := unsafe.Pointer(C.duckdb_malloc(C.size_t(n) * charSize))
+	arrMem := unsafe.Pointer(C.calloc(C.size_t(n), charSize))
 	if arrMem == nil {
-		panic("duckdb-go-bindings: duckdb_malloc name array returned nil")
+		panic("duckdb-go-bindings: calloc name array returned nil")
 	}
 	arr := (**C.char)(arrMem)
 
