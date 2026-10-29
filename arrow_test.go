@@ -346,6 +346,30 @@ func BenchmarkDataChunkFromArrowCachedSchema(b *testing.B) {
 	}
 }
 
+func TestNewArrowSchemaLengths(t *testing.T) {
+	conn := openTestConnection(t)
+	var options ArrowOptions
+	ConnectionGetArrowOptions(conn, &options)
+	defer DestroyArrowOptions(&options)
+	integerT := CreateLogicalType(TypeInteger)
+	defer DestroyLogicalType(&integerT)
+	varcharT := CreateLogicalType(TypeVarchar)
+	defer DestroyLogicalType(&varcharT)
+	types := []LogicalType{integerT, varcharT}
+
+	for _, names := range [][]string{nil, {"a", "b", "c"}} {
+		schema, ed := NewArrowSchema(options, types, names)
+		defer DestroyErrorData(&ed)
+		require.Nil(t, schema, names)
+		require.Equal(t, ErrorTypeInvalidInput, ErrorDataErrorType(ed), names)
+	}
+
+	schema, ed := NewArrowSchema(options, nil, nil)
+	defer DestroyErrorData(&ed)
+	require.False(t, ErrorDataHasError(ed), ErrorDataMessage(ed))
+	require.Zero(t, schema.NumFields())
+}
+
 func TestArrow(t *testing.T) {
 	defer VerifyAllocationCounters()
 

@@ -35,6 +35,74 @@ func TestCreateDataChunk(t *testing.T) {
 	defer DestroyDataChunk(&chunk)
 }
 
+func TestNamedLogicalTypeLengths(t *testing.T) {
+	defer VerifyAllocationCounters()
+	integerT := CreateLogicalType(TypeInteger)
+	defer DestroyLogicalType(&integerT)
+	varcharT := CreateLogicalType(TypeVarchar)
+	defer DestroyLogicalType(&varcharT)
+	types := []LogicalType{integerT, varcharT}
+
+	for _, names := range [][]string{{"a"}, {"a", "b", "c"}} {
+		require.Nil(t, CreateStructType(types, names).Ptr, names)
+		require.Nil(t, CreateUnionType(types, names).Ptr, names)
+	}
+
+	structT := CreateStructType(types, []string{"a", "b"})
+	defer DestroyLogicalType(&structT)
+	require.NotNil(t, structT.Ptr)
+	unionT := CreateUnionType(types, []string{"a", "b"})
+	defer DestroyLogicalType(&unionT)
+	require.NotNil(t, unionT.Ptr)
+}
+
+func TestAppenderCreateQueryColumnNames(t *testing.T) {
+	conn := openTestConnection(t)
+	integerT := CreateLogicalType(TypeInteger)
+	defer DestroyLogicalType(&integerT)
+	varcharT := CreateLogicalType(TypeVarchar)
+	defer DestroyLogicalType(&varcharT)
+	types := []LogicalType{integerT, varcharT}
+
+	var result Result
+	defer DestroyResult(&result)
+	require.Equal(t, StateSuccess, Query(conn, "CREATE TABLE target (i INTEGER, s VARCHAR)", &result))
+
+	for _, names := range [][]string{{"a"}, {"a", "b", "c"}} {
+		var appender Appender
+		require.Equal(t, StateError, AppenderCreateQuery(conn, "INSERT INTO target SELECT * FROM appended_data", types, "", names, &appender), names)
+		require.Nil(t, appender.Ptr, names)
+	}
+
+	var input Result
+	defer DestroyResult(&input)
+	require.Equal(t, StateSuccess, Query(conn, "SELECT 42::INTEGER, 'hello'::VARCHAR", &input))
+	chunk := FetchChunk(input)
+	defer DestroyDataChunk(&chunk)
+
+	// Without column names, DuckDB names the columns col1, col2, ...
+	for _, tc := range []struct {
+		names   []string
+		columns string
+	}{
+		{nil, "col1, col2"},
+		{[]string{"a", "b"}, "a, b"},
+	} {
+		var appender Appender
+		defer AppenderDestroy(&appender)
+		state := AppenderCreateQuery(conn, "INSERT INTO target SELECT "+tc.columns+" FROM appended_data", types, "", tc.names, &appender)
+		require.Equal(t, StateSuccess, state, AppenderError(appender))
+		require.Equal(t, IdxT(2), AppenderColumnCount(appender))
+		require.Equal(t, StateSuccess, AppendDataChunk(appender, chunk))
+		require.Equal(t, StateSuccess, AppenderFlush(appender))
+	}
+
+	var rows Result
+	defer DestroyResult(&rows)
+	require.Equal(t, StateSuccess, Query(conn, "SELECT count(*) FROM target WHERE i = 42 AND s = 'hello'", &rows))
+	require.Equal(t, int64(2), ValueInt64(&rows, 0, 0))
+}
+
 func TestLibraryVersion(t *testing.T) {
 	defer VerifyAllocationCounters()
 	v := LibraryVersion()

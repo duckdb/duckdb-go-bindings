@@ -68,8 +68,13 @@ import (
 )
 
 // NewArrowSchema creates a new ArrowSchema from an array of DuckDB logical types and column names.
+// types and names must have the same length; otherwise, it returns an invalid-input error.
 // The returned ErrorData must be checked for errors and destroyed with DestroyErrorData.
 func NewArrowSchema(options ArrowOptions, types []LogicalType, names []string) (*arrow.Schema, ErrorData) {
+	if len(types) != len(names) {
+		return nil, CreateErrorData(ErrorTypeInvalidInput, "types and names must have the same length")
+	}
+
 	cTypes := allocLogicalTypes(types)
 	defer Free(unsafe.Pointer(cTypes))
 
