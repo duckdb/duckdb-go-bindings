@@ -49,7 +49,7 @@ type artifact struct {
 // release is the manifest plus the settings derived from it and the environment.
 type release struct {
 	manifest
-	platforms    []string // sorted platform names, e.g. darwin-arm64
+	platforms    []string // sorted platforms published as prebuilt native modules
 	modulePrefix string   // platform module paths without the platform
 	work         string   // LIB_WORK, outside the checkout
 	goVersion    string   // go directive of the root module
@@ -101,6 +101,11 @@ func load() *release {
 		}
 	}
 	r.platforms = slices.Sorted(maps.Keys(r.Platforms))
+	r.platforms = slices.DeleteFunc(r.platforms, func(platform string) bool {
+		// ARM64's MSVC libraries require build-wide CRT configuration, not
+		// just the cgo directives of a prebuilt platform module.
+		return r.Platforms[platform].Static == "" || platform == "windows-arm64"
+	})
 	r.modulePrefix = strings.TrimPrefix(r.Origin, "https://") + "/" + modulePath
 	r.work = workDir()
 
@@ -172,6 +177,7 @@ func (r *release) testEnv() map[string]string {
 		"PLATFORM":       platform,
 		"NATIVE_DIR":     filepath.ToSlash(r.native(platform)),
 		"DYNAMIC_DIR":    filepath.ToSlash(r.dynamic(platform)),
+		"STATIC_LDFLAGS": strings.Join(ldflags(platform), " ") + " " + fmt.Sprintf("%q", "-L"+filepath.ToSlash(r.native(platform))),
 		"MODULE_PROXY":   r.localProxy(),
 		"MODULE_CACHE":   filepath.ToSlash(r.modcache()),
 		"GOPROXY":        cmp.Or(os.Getenv("GOPROXY"), r.Origin+"/modules,https://proxy.golang.org"),
@@ -185,7 +191,10 @@ func (r *release) testEnv() map[string]string {
 // native dependency in a local workspace. Go formats native Windows paths too.
 func (r *release) use() {
 	platform := r.platform()
-	r.stage(platform)
+	if platform == "windows-arm64" {
+		fail("windows-arm64 requires duckdb_use_static_lib; use make test.static instead of make use.libs")
+	}
+	r.stageModule(platform)
 	copyFile(r.header(platform), "include/duckdb.h")
 	work := &modfile.WorkFile{Syntax: &modfile.FileSyntax{Name: "go.work"}}
 	check(work.AddGoStmt(r.goVersion))
@@ -213,7 +222,7 @@ func (r *release) packageModules() {
 
 	check(os.RemoveAll(r.modules()))
 	for _, platform := range r.platforms {
-		r.stage(platform)
+		r.stageModule(platform)
 		checkSameHeader(r.header(r.platforms[0]), r.header(platform))
 
 		mod := module.Version{Path: r.module(platform), Version: r.Version}

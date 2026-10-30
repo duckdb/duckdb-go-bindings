@@ -92,6 +92,40 @@ func TestUseAndFetchShared(t *testing.T) {
 	}
 }
 
+func TestWindowsARM64Artifacts(t *testing.T) {
+	r := fixtureRelease(t, "windows-arm64")
+	_, digest := r.archive(r.BaseURL+"/duckdb-static-libs-static-name.tar.gz", "")
+	r.Platforms["linux-amd64"] = artifact{Static: "static-name", StaticSHA256: digest}
+	r.Origin, r.Version = r.BaseURL, "v0.0.1"
+	writeJSON(manifestFile, r.manifest)
+	writeFile("include/duckdb.h", []byte("header\n"))
+	t.Setenv("LIB_WORK", r.work)
+	t.Setenv("PLATFORM", "windows-arm64")
+	t.Setenv("BASE_URL", "")
+	r = load()
+	// The fixture origin is a local HTTP server, not a valid module domain.
+	r.modulePrefix = "example.com/native"
+	env := r.testEnv()
+	require.Equal(t, "windows-arm64", env["PLATFORM"])
+	require.Contains(t, env["STATIC_LDFLAGS"], "-nostartfiles")
+	require.Contains(t, env["STATIC_LDFLAGS"], "-Wl,--entry=mainCRTStartup")
+	require.Contains(t, env["STATIC_LDFLAGS"], "-llibucrt")
+	require.NotContains(t, env["STATIC_LDFLAGS"], "-lstdc++")
+	r.stage(r.platform())
+	require.FileExists(t, filepath.Join(r.native("windows-arm64"), "duckdb_static.lib"))
+	require.FileExists(t, filepath.Join(r.native("windows-arm64"), "json_extension.lib"))
+	require.FileExists(t, filepath.Join(r.native("windows-arm64"), "static_extension_loader.c"))
+	require.NoFileExists(t, filepath.Join(r.native("windows-arm64"), "libduckdb_static.a"))
+	require.NoFileExists(t, filepath.Join(r.native("windows-arm64"), "go.mod"))
+	requireFailure(t, "duckdb_use_static_lib", r.use)
+	r.stageShared(r.platform())
+	require.FileExists(t, filepath.Join(r.dynamic("windows-arm64"), "duckdb.dll"))
+	require.FileExists(t, filepath.Join(r.dynamic("windows-arm64"), "duckdb.lib"))
+	r.packageModules()
+	require.FileExists(t, filepath.Join(r.modules(), "example.com/native/linux-amd64/@v/v0.0.1.zip"))
+	require.NoDirExists(t, filepath.Join(r.modules(), "example.com/native/windows-arm64"))
+}
+
 func fixtureRelease(t *testing.T, platform string) *release {
 	t.Helper()
 	root := filepath.Join(t.TempDir(), "repo with spaces")
@@ -102,13 +136,18 @@ func fixtureRelease(t *testing.T, platform string) *release {
 	static := map[string]string{
 		"duckdb.h": "header\n", "duckdb_static_extension.h": "static header\n", "libduckdb_static.a": "library",
 	}
+	msvc := map[string]string{
+		"duckdb.h": "header\r\n", "duckdb_static_extension.h": "static header\n", "duckdb_static.lib": "MSVC library",
+	}
 	// These are the upstream filenames, independent of the generator's lists.
 	for _, name := range []string{"duckdb_httplib", "duckdb_loadable_extensions", "autocomplete_extension", "core_functions_extension", "icu_extension", "json_extension", "parquet_extension", "tpcds_extension", "tpch_extension"} {
 		static["lib"+name+".a"] = "library"
+		msvc[name+".lib"] = "MSVC library"
 	}
 	shared := map[string]string{"duckdb.h": "header\r\n", "libduckdb.dylib": "library", "libduckdb.so": "library", "duckdb.dll": "library", "duckdb.lib": "import library"}
 	archives := map[string][]byte{
 		"/duckdb-static-libs-static-name.tar.gz": tarball(t, static),
+		"/duckdb-static-libs-msvc-name.tar.gz":   tarball(t, msvc),
 		"/duckdb-shared-libs-shared-name.tar.gz": tarball(t, shared),
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -119,8 +158,12 @@ func fixtureRelease(t *testing.T, platform string) *release {
 		}
 	}))
 	t.Cleanup(server.Close)
+	staticName := "static-name"
+	if platform == "windows-arm64" {
+		staticName = "msvc-name"
+	}
 	return &release{
-		manifest:     manifest{BaseURL: server.URL, Platforms: map[string]artifact{platform: {Static: "static-name", Shared: "shared-name"}}},
+		manifest:     manifest{BaseURL: server.URL, Platforms: map[string]artifact{platform: {Static: staticName, Shared: "shared-name"}}},
 		modulePrefix: "example.com/native", work: filepath.Join(t.TempDir(), "native work"), goVersion: "1.24",
 	}
 }

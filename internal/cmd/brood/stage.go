@@ -77,7 +77,7 @@ import _ "{{.Module}}"
 
 func platformPrebuilt(platform string) []byte {
 	goos, goarch, _ := strings.Cut(platform, "-")
-	return render(platformPrebuiltGo, struct{ OS, Arch, LDFlags string }{goos, goarch, strings.Join(ldflags(goos), " ")})
+	return render(platformPrebuiltGo, struct{ OS, Arch, LDFlags string }{goos, goarch, strings.Join(ldflags(platform), " ")})
 }
 
 // rootPrebuilt returns the root module's file that selects platform's module.
@@ -87,27 +87,30 @@ func (r *release) rootPrebuilt(platform string) (name string, data []byte) {
 	return "prebuilt_" + goos + "_" + goarch + ".go", data
 }
 
-// stage downloads platform's static archive and lays out its module in
-// LIB_WORK/native/<platform>. The header goes to LIB_WORK/headers/<platform>,
-// outside the module.
+// stage downloads platform's static archive to LIB_WORK/native/<platform>.
+// The header goes to LIB_WORK/headers/<platform>, outside the native directory.
 func (r *release) stage(platform string) {
 	a := r.Platforms[platform]
+	if a.Static == "" {
+		fail("%s has no prebuilt static libraries; use duckdb_use_lib and make test.dynamic", platform)
+	}
 	url := r.BaseURL + "/duckdb-static-libs-" + a.Static + ".tar.gz"
 	archive, digest := r.archive(url, a.StaticSHA256)
 
 	dest := r.native(platform)
-	members := []string{"duckdb.h", "duckdb_static_extension.h", "libduckdb_static.a"}
-	for _, lib := range libraries() {
-		members = append(members, "lib"+lib+".a")
+	members := []string{"duckdb.h", "duckdb_static_extension.h"}
+	for _, lib := range append([]string{"duckdb_static"}, libraries()...) {
+		name := "lib" + lib + ".a"
+		if platform == "windows-arm64" {
+			name = lib + ".lib"
+		}
+		members = append(members, name)
 	}
 	extract(archive, dest, members)
 	mkdir(filepath.Dir(r.header(platform)))
 	check(os.Rename(filepath.Join(dest, "duckdb.h"), r.header(platform)))
 
-	writeFile(filepath.Join(dest, "prebuilt.go"), platformPrebuilt(platform))
 	writeFile(filepath.Join(dest, "static_extension_loader.c"), render(staticExtensionLoaderC, registrations))
-	writeFile(filepath.Join(dest, "go.mod"), fmt.Appendf(nil, "module %s\n\ngo %s\n", r.module(platform), r.goVersion))
-	copyFile("LICENSE", filepath.Join(dest, "LICENSE"))
 
 	provenance := map[string]string{"platform": platform, "sha256": digest, "url": url}
 	if r.DuckDBVersion != "" { // unset for a BASE_URL override
@@ -115,6 +118,15 @@ func (r *release) stage(platform string) {
 		provenance["source"] = r.Source
 	}
 	writeJSON(filepath.Join(dest, "provenance.json"), provenance)
+}
+
+// stageModule decorates the staged native assets as a prebuilt Go module.
+func (r *release) stageModule(platform string) {
+	r.stage(platform)
+	dest := r.native(platform)
+	writeFile(filepath.Join(dest, "prebuilt.go"), platformPrebuilt(platform))
+	writeFile(filepath.Join(dest, "go.mod"), fmt.Appendf(nil, "module %s\n\ngo %s\n", r.module(platform), r.goVersion))
+	copyFile("LICENSE", filepath.Join(dest, "LICENSE"))
 }
 
 // stageShared fetches the shared library and checks its header against the one
@@ -158,8 +170,11 @@ func (r *release) archive(url, pin string) (path, digest string) {
 	return path, digest
 }
 
-// ldflags returns the cgo linker flags for a platform module on goos.
-func ldflags(goos string) []string {
+// ldflags returns the platform's static linker flags. Windows ARM64 uses
+// Microsoft's CRT startup; the caller must also configure its library paths
+// and static CRT declarations for all cgo packages.
+func ldflags(platform string) []string {
+	goos, _, _ := strings.Cut(platform, "-")
 	var flags []string
 	if goos == "linux" {
 		flags = append(flags, "-rdynamic")
@@ -168,6 +183,11 @@ func ldflags(goos string) []string {
 		flags = append(flags, "-l"+lib)
 	}
 	flags = append(flags, "-lduckdb_static")
+	if platform == "windows-arm64" {
+		return append(flags, "-nostartfiles", "-Wl,--entry=mainCRTStartup",
+			"-llibcmt", "-llibcpmt", "-llibvcruntime", "-llibucrt", "-loldnames",
+			"-lws2_32", "-lrstrtmgr", "-lbcrypt")
+	}
 	switch goos {
 	case "darwin":
 		flags = append(flags, "-lc++")
