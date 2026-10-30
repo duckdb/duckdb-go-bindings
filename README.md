@@ -58,7 +58,7 @@ Simply import the module in your Go project:
 import "github.com/duckdb/duckdb-go-bindings"
 ```
 
-The module selects pre-built static libraries for all supported platforms:
+The module selects pre-built static libraries for these platforms:
 
 - darwin-amd64
 - darwin-arm64
@@ -67,6 +67,10 @@ The module selects pre-built static libraries for all supported platforms:
 - windows-amd64
 
 Platform detection and linking is handled automatically through cgo directives. `CGO_ENABLED=1` is required, and your system needs a C compiler.
+
+Windows ARM64 supports custom static linking with `duckdb_use_static_lib` and
+dynamic linking with `duckdb_use_lib`, but has no automatic prebuilt module.
+See [Windows ARM64](#windows-arm64) for the compiler and runtime setup.
 
 ## Upgrading to DuckDB v2
 
@@ -280,7 +284,7 @@ CGO_ENABLED=1 \
   CGO_LDFLAGS="-rdynamic $LIBS -lstdc++ -lm -ldl -L/path/to/lib" \
   go build -tags=duckdb_use_static_lib
 
-# Windows
+# Windows AMD64
 CGO_ENABLED=1 \
   CGO_LDFLAGS="$LIBS -lws2_32 -lwsock32 -lrstrtmgr -lstdc++ -lm --static -L/path/to/lib" \
   go build -tags=duckdb_use_static_lib
@@ -317,6 +321,75 @@ To fetch the pinned shared library and run the tests against it on your platform
 ```bash
 make test.dynamic
 ```
+
+#### Windows ARM64
+
+Use an ARM64-targeting [llvm-mingw](https://github.com/mstorsjo/llvm-mingw/releases)
+compiler. CI is configured to test static and dynamic linking with llvm-mingw
+`20261020` (UCRT) on the native `windows-11-vs2026-arm` runner, using the normal
+and debug/Arrow tests. Native execution has not yet been verified. Add
+llvm-mingw's `bin` directory to `PATH` in Git Bash.
+
+**Static linking**
+
+DuckDB's official static archives require the Microsoft C++ runtime from
+Visual Studio 2026 (MSVC 14.51 or newer) and a Windows SDK with ARM64 libraries.
+Install the ARM64 C++ build tools and set these paths to your installed versions:
+
+```bash
+export CC=aarch64-w64-mingw32-clang
+export CXX=aarch64-w64-mingw32-clang++
+export MSVC_LIB_DIR='C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/MSVC/14.51.36231/lib/arm64'
+export UCRT_LIB_DIR='C:/Program Files (x86)/Windows Kits/10/Lib/10.0.28000.0/ucrt/arm64'
+export WINDOWS_LIB_DIR='C:/Program Files (x86)/Windows Kits/10/Lib/10.0.28000.0/um/arm64'
+./scripts/test.sh static
+```
+
+For an application build, run the following from this repository's root, then
+build your application with the exported environment and `duckdb_use_static_lib`:
+
+```bash
+static_env=$(./scripts/static-env.sh) && eval "$static_env"
+cd /path/to/your/application
+go build -tags=duckdb_use_static_lib ./...
+```
+
+The setup downloads and verifies the pinned archives, compiles the static
+extension loader, and configures the compiler and linker for all cgo packages.
+It uses Microsoft's CRT startup and static C/C++ runtimes, not MinGW's startup.
+Keep these settings for the entire build, including `runtime/cgo` and Arrow.
+Microsoft's development libraries must be installed locally, not bundled in a
+prebuilt Go module. The resulting executable does not need `duckdb.dll` or the
+Microsoft runtime DLLs, but still uses Windows system DLLs.
+
+**Dynamic linking**
+
+Dynamic linking does not require the Microsoft static runtime libraries:
+
+```bash
+export CC=aarch64-w64-mingw32-clang
+make test.dynamic
+```
+
+This downloads and verifies the pinned ARM64 DLL and import library, checks
+their header against the bindings, and adds the DLL directory to `PATH` for
+the tests. If Make is unavailable, run `./scripts/test.sh dynamic` directly.
+
+For your own application, extract `duckdb-shared-libs-windows-arm64.tar.gz`
+from the matching [DuckDB release](https://github.com/duckdb/duckdb/releases)
+into a directory such as `C:/duckdb/lib`, then build in Git Bash:
+
+```bash
+CGO_ENABLED=1 CC=aarch64-w64-mingw32-clang \
+  CGO_LDFLAGS="-LC:/duckdb/lib" \
+  go build -tags=duckdb_use_lib ./...
+```
+
+Keep `duckdb.dll` beside the application executable or in a directory on
+`PATH` at runtime. Cross-compiling from another OS also requires
+`GOOS=windows GOARCH=arm64` and the corresponding llvm-mingw host toolchain.
+Run staging commands with host Go settings, using `PLATFORM=windows-arm64`
+and `CGO_ENABLED=0`, before setting the target Go variables for the build.
 
 ## Arrow functions
 
