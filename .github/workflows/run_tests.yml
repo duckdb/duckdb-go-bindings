@@ -39,7 +39,7 @@ jobs:
           - &darwin-arm64 { platform: darwin-arm64, github: macos-26, namespace: namespace-profile-macos-arm64 }
           - &linux-amd64 { platform: linux-amd64, github: ubuntu-24.04, namespace: namespace-profile-linux-small }
           - &linux-arm64 { platform: linux-arm64, github: ubuntu-24.04-arm, namespace: namespace-profile-linux-arm64-small }
-          - { platform: windows-amd64, github: windows-2025, namespace: namespace-profile-windows-x64 }
+          - &windows-amd64 { platform: windows-amd64, github: windows-2025, namespace: namespace-profile-windows-x64 }
       fail-fast: false
     steps:
       - uses: actions/checkout@v7
@@ -63,12 +63,14 @@ jobs:
           - darwin-arm64
           - linux-amd64
           - linux-arm64
+          - windows-amd64
         exclude: *skip-intel-on-pr
         include:
           - *darwin-amd64
           - *darwin-arm64
           - *linux-amd64
           - *linux-arm64
+          - *windows-amd64
       fail-fast: false
     steps:
       - uses: actions/checkout@v7
@@ -92,12 +94,14 @@ jobs:
           - darwin-arm64
           - linux-amd64
           - linux-arm64
+          - windows-amd64
         exclude: *skip-intel-on-pr
         include:
           - *darwin-amd64
           - *darwin-arm64
           - *linux-amd64
           - *linux-arm64
+          - *windows-amd64
       fail-fast: false
     steps:
       - uses: actions/checkout@v7
