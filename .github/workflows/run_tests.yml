@@ -84,6 +84,8 @@ jobs:
         if: matrix.platform == 'windows-arm64'
         shell: pwsh
         run: |
+          # The Go matcher misclassifies Clang notes in Arrow's cgo code as errors.
+          Write-Output '::remove-matcher owner=go::'
           $name = "llvm-mingw-20261020-ucrt-aarch64"
           $archive = "$env:RUNNER_TEMP/$name.zip"
           Invoke-WebRequest "https://github.com/mstorsjo/llvm-mingw/releases/download/20261020/$name.zip" -OutFile $archive
