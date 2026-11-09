@@ -5,7 +5,6 @@ package duckdb_go_bindings
 /*
 #include <duckdb.h>
 #include <stdlib.h>
-#include <duckdb_go_bindings.h>
 
 #ifndef ARROW_C_DATA_INTERFACE
 #define ARROW_C_DATA_INTERFACE

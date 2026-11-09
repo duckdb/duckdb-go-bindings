@@ -4,7 +4,6 @@ package duckdb_go_bindings
 #include <duckdb.h>
 #include <stdlib.h>
 #include <string.h>
-#include <duckdb_go_bindings.h>
 */
 import "C"
 
