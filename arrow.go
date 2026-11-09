@@ -215,6 +215,10 @@ func ExecutePreparedArrow(preparedStmt PreparedStatement, outArrow *Arrow) State
 	return state
 }
 
+// Deprecated: use the new Arrow interface functions instead.
+// ArrowScan wraps duckdb_arrow_scan.
+// A stream exported by arrow-go leaves Go-allocated buffers unpinned in C memory (apache/arrow-go#70),
+// which is fatal under GOEXPERIMENT=cgocheck2. Allocate the buffers in C to avoid that.
 func ArrowScan(conn Connection, table string, stream ArrowStream) State {
 	cTable := C.CString(table)
 	defer Free(unsafe.Pointer(cTable))
