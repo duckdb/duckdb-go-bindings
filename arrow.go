@@ -57,10 +57,14 @@ struct ArrowArrayStream {
 };
 
 #endif  // ARROW_C_DATA_INTERFACE
+
+extern void duckdbGoReleasePinnedArrowArray(struct ArrowArray* array);
 */
 import "C"
 
 import (
+	"runtime"
+	"runtime/cgo"
 	"unsafe"
 
 	"github.com/apache/arrow-go/v18/arrow"
@@ -140,6 +144,7 @@ func SchemaFromArrow(conn Connection, schema *arrow.Schema) (ArrowConvertedSchem
 
 // DataChunkFromArrow converts an Arrow RecordBatch to a DuckDB DataChunk using the provided Connection and ArrowConvertedSchema.
 // rec.Schema() must be compatible with the Arrow schema used to create the provided ArrowConvertedSchema.
+// The input record may be released after this call; its buffers stay pinned until DuckDB releases the exported array.
 // The returned DataChunk must be destroyed with DestroyDataChunk.
 // The returned ErrorData must be checked for errors and destroyed with DestroyErrorData.
 func DataChunkFromArrow(conn Connection, rec arrow.RecordBatch, schema ArrowConvertedSchema) (DataChunk, ErrorData) {
@@ -148,7 +153,7 @@ func DataChunkFromArrow(conn Connection, rec arrow.RecordBatch, schema ArrowConv
 		cdata.ReleaseCArrowArray((*cdata.CArrowArray)(arr))
 		C.free(arr)
 	}()
-	cdata.ExportArrowRecordBatch(rec, (*cdata.CArrowArray)(arr), nil)
+	exportPinnedArrowRecordBatch(rec, (*C.struct_ArrowArray)(arr))
 
 	var chunk C.duckdb_data_chunk
 	ed := C.duckdb_data_chunk_from_arrow(conn.data(), (*C.struct_ArrowArray)(arr), schema.data(), &chunk)
@@ -214,4 +219,63 @@ func ArrowScan(conn Connection, table string, stream ArrowStream) State {
 	cTable := C.CString(table)
 	defer Free(unsafe.Pointer(cTable))
 	return C.duckdb_arrow_scan(conn.data(), cTable, stream.data())
+}
+
+// pinnedArrowExport keeps exported Go buffers pinned and remembers the
+// producer's release callback until DuckDB releases the array.
+type pinnedArrowExport struct {
+	pins        runtime.Pinner
+	release     *[0]byte
+	privateData unsafe.Pointer
+}
+
+func exportPinnedArrowRecordBatch(rec arrow.RecordBatch, out *C.struct_ArrowArray) {
+	e := new(pinnedArrowExport)
+	defer func() {
+		// A panic before the handoff leaves the pins with this function.
+		if e.release == nil {
+			cdata.ReleaseCArrowArray((*cdata.CArrowArray)(unsafe.Pointer(out)))
+			e.pins.Unpin()
+		}
+	}()
+
+	for _, col := range rec.Columns() {
+		e.pin(col.Data())
+	}
+	cdata.ExportArrowRecordBatch(rec, (*cdata.CArrowArray)(unsafe.Pointer(out)), nil)
+
+	// A cgo.Handle is not a valid pointer, so private_data points at it.
+	slot := (*C.uintptr_t)(C.malloc(C.sizeof_uintptr_t))
+	*slot = C.uintptr_t(cgo.NewHandle(e))
+	e.release, e.privateData = out.release, out.private_data
+	out.release, out.private_data = (*[0]byte)(C.duckdbGoReleasePinnedArrowArray), unsafe.Pointer(slot)
+}
+
+func (e *pinnedArrowExport) pin(data arrow.ArrayData) {
+	for _, buf := range data.Buffers() {
+		if buf != nil && buf.Len() > 0 {
+			e.pins.Pin(unsafe.SliceData(buf.Bytes()))
+		}
+	}
+	for _, child := range data.Children() {
+		e.pin(child)
+	}
+	// Dictionary() returns a typed nil for ordinary array.Data values.
+	if data.DataType().ID() == arrow.DICTIONARY {
+		e.pin(data.Dictionary())
+	}
+}
+
+//export duckdbGoReleasePinnedArrowArray
+func duckdbGoReleasePinnedArrowArray(out *C.struct_ArrowArray) {
+	slot := (*C.uintptr_t)(out.private_data)
+	handle := cgo.Handle(*slot)
+	C.free(unsafe.Pointer(slot))
+	defer handle.Delete()
+
+	export := handle.Value().(*pinnedArrowExport)
+	defer export.pins.Unpin()
+	// Release Arrow's references while its buffers are still pinned.
+	out.release, out.private_data = export.release, export.privateData
+	cdata.ReleaseCArrowArray((*cdata.CArrowArray)(unsafe.Pointer(out)))
 }

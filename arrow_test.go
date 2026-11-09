@@ -3,13 +3,121 @@
 package duckdb_go_bindings
 
 import (
+	"runtime"
 	"testing"
+	"unsafe"
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/apache/arrow-go/v18/arrow/array"
 	"github.com/apache/arrow-go/v18/arrow/memory"
 	"github.com/stretchr/testify/require"
 )
+
+func TestDataChunkFromArrowGoBufferLifetime(t *testing.T) {
+	conn := openTestConnection(t)
+	mem := &releaseCheckingAllocator{Allocator: memory.DefaultAllocator}
+	rec, alloc := newCheckedInt32Record(mem)
+	originalData := unsafe.Pointer(unsafe.SliceData(rec.Column(0).Data().Buffers()[1].Bytes()))
+	checkedRelease := false
+	mem.onFree = func(buf []byte) {
+		// Arrow's original release must run before the buffers are unpinned.
+		requireStorableInC(t, unsafe.Pointer(unsafe.SliceData(buf)))
+		checkedRelease = true
+	}
+
+	converted := requireArrowConvertedSchema(t, conn, rec.Schema())
+	defer DestroyArrowConvertedSchema(&converted)
+	chunk := requireDataChunkFromArrow(t, conn, rec, converted)
+	defer DestroyDataChunk(&chunk)
+	integerT := CreateLogicalType(TypeInteger)
+	defer DestroyLogicalType(&integerT)
+	alias := CreateVector(integerT, 1)
+	defer DestroyVector(&alias)
+	VectorReferenceVector(alias, DataChunkGetVector(chunk, 0))
+	DestroyDataChunk(&chunk)
+	rec.Release()
+	// Collect the input record before checking DuckDB's retained vector.
+	runtime.GC()
+
+	data := VectorGetData(alias)
+	require.Equal(t, originalData, data, "conversion must keep the source buffer")
+	require.Equal(t, int32(42), *(*int32)(data))
+	// With cgocheck2, this store also verifies that the retained buffer is
+	// still pinned after both the record and original chunk are released.
+	requireStorableInC(t, data)
+
+	released := make(chan struct{})
+	go func() {
+		defer close(released)
+		DestroyVector(&alias)
+	}()
+	<-released
+	require.True(t, checkedRelease, "Arrow's release must free the source buffers")
+	alloc.AssertSize(t, 0)
+	// Exercise the Pinner finalizer, which panics if any pins leaked.
+	runtime.GC()
+}
+
+func TestDataChunkFromArrowFailedImportReleasesBuffers(t *testing.T) {
+	conn := openTestConnection(t)
+	rec, alloc := newCheckedInt32Record(memory.DefaultAllocator)
+	converted := requireArrowConvertedSchema(t, conn, rec.Schema())
+	defer DestroyArrowConvertedSchema(&converted)
+
+	// A nil connection fails before DuckDB consumes the exported ArrowArray.
+	chunk, ed := DataChunkFromArrow(Connection{}, rec, converted)
+	defer DestroyDataChunk(&chunk)
+	defer DestroyErrorData(&ed)
+	rec.Release()
+	require.True(t, ErrorDataHasError(ed))
+	require.Nil(t, chunk.Ptr)
+	alloc.AssertSize(t, 0)
+	// Exercise the Pinner finalizer, which panics if any pins leaked.
+	runtime.GC()
+}
+
+func TestDataChunkFromArrowExportPanicReleasesPins(t *testing.T) {
+	rec, alloc := newCheckedInt32Record(memory.DefaultAllocator)
+	require.PanicsWithValue(t, "export failed", func() {
+		DataChunkFromArrow(Connection{}, panicOnExportRecord{rec}, ArrowConvertedSchema{})
+	})
+	rec.Release()
+	alloc.AssertSize(t, 0)
+	// Exercise the Pinner finalizer after recovering from a failed export.
+	runtime.GC()
+}
+
+type panicOnExportRecord struct{ arrow.RecordBatch }
+
+func (panicOnExportRecord) NumCols() int64 { panic("export failed") }
+
+type releaseCheckingAllocator struct {
+	memory.Allocator
+	onFree func([]byte)
+}
+
+func (a *releaseCheckingAllocator) Free(buf []byte) {
+	if a.onFree != nil && len(buf) > 0 {
+		a.onFree(buf)
+	}
+	a.Allocator.Free(buf)
+}
+
+func requireStorableInC(t *testing.T, data unsafe.Pointer) {
+	t.Helper()
+
+	slotT := CreateLogicalType(TypeUBigInt)
+	defer DestroyLogicalType(&slotT)
+	slots := CreateVector(slotT, 1)
+	defer DestroyVector(&slots)
+	slot := VectorGetData(slots)
+	// Initialize the native slot before Go's pointer write can read its old value.
+	*(*uint64)(slot) = 0
+	*(*unsafe.Pointer)(slot) = data
+	// Read through C so the compiler cannot eliminate the pointer store.
+	require.Equal(t, data, *(*unsafe.Pointer)(VectorGetData(slots)))
+	*(*unsafe.Pointer)(slot) = nil
+}
 
 func requireArrowConvertedSchema(tb testing.TB, conn Connection, schema *arrow.Schema) ArrowConvertedSchema {
 	tb.Helper()
@@ -83,6 +191,17 @@ func requireArrowRoundTrip(
 	for i := 0; i < int(expected.NumCols()); i++ {
 		require.True(t, array.Equal(expected.Column(i), out.Column(i)), "column %d did not round-trip", i)
 	}
+}
+
+func newCheckedInt32Record(mem memory.Allocator) (arrow.RecordBatch, *memory.CheckedAllocator) {
+	alloc := memory.NewCheckedAllocator(mem)
+	builder := array.NewInt32Builder(alloc)
+	defer builder.Release()
+	builder.Append(42)
+	col := builder.NewInt32Array()
+	defer col.Release()
+	schema := arrow.NewSchema([]arrow.Field{{Name: "value", Type: arrow.PrimitiveTypes.Int32}}, nil)
+	return array.NewRecordBatch(schema, []arrow.Array{col}, 1), alloc
 }
 
 func newPrimitiveStringRecord(
