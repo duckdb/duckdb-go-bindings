@@ -53,7 +53,9 @@ esac
 
 go test -mod=readonly -count=1 -tags="$tags" ./...
 # Only the bindings depend on the tags; brood's tests ran above.
-go test -mod=readonly -count=1 -tags="${tags:+$tags,}debug_bindings,duckdb_arrow" .
+# Check that exported Go buffers stay pinned while DuckDB retains them.
+GOEXPERIMENT="${GOEXPERIMENT:+$GOEXPERIMENT,}cgocheck2" \
+	go test -mod=readonly -count=1 -tags="${tags:+$tags,}debug_bindings,duckdb_arrow" .
 case "$mode" in
 	prebuilt|packaged) go mod verify ;;
 esac
