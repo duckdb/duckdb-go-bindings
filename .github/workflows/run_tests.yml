@@ -48,6 +48,9 @@ jobs:
           go-version-file: go.mod
       - name: Test ${{ matrix.platform }}
         run: make test
+      - name: Check races and unsafe pointers
+        if: matrix.platform == 'linux-amd64'
+        run: make test.race
 
   dynamic-lib-tests:
     name: Test Dynamic Libs
