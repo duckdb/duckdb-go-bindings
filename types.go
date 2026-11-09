@@ -8,7 +8,10 @@ package duckdb_go_bindings
 */
 import "C"
 
-import "unsafe"
+import (
+	"strings"
+	"unsafe"
+)
 
 type IdxT = C.idx_t
 
@@ -67,9 +70,8 @@ func StringTLength(strT StringT) uint32 {
 }
 
 func StringTData(strT *StringT) string {
-	length := C.int(StringTLength(*strT))
-	ptr := unsafe.Pointer(C.duckdb_string_t_data(strT))
-	return string(C.GoBytes(ptr, length))
+	data := (*byte)(unsafe.Pointer(C.duckdb_string_t_data(strT)))
+	return strings.Clone(unsafe.String(data, StringTLength(*strT)))
 }
 
 // Helper functions for types without internal pointers:
