@@ -23,11 +23,6 @@ func Free(ptr unsafe.Pointer) {
 	C.duckdb_free(ptr)
 }
 
-func ValidityMaskValueIsValid(maskPtr unsafe.Pointer, index IdxT) bool {
-	castMaskPtr := (*C.uint64_t)(maskPtr)
-	return bool(C.duckdb_go_bindings_is_valid(castMaskPtr, index))
-}
-
 const (
 	logicalTypeSize = C.size_t(unsafe.Sizeof((C.duckdb_logical_type)(nil)))
 	valueSize       = C.size_t(unsafe.Sizeof((C.duckdb_value)(nil)))
