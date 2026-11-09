@@ -223,6 +223,8 @@ func ArrowScan(conn Connection, table string, stream ArrowStream) State {
 
 // pinnedArrowExport keeps exported Go buffers pinned and remembers the
 // producer's release callback until DuckDB releases the array.
+// arrow-go leaves Go buffer pointers unpinned in C memory by design
+// (apache/arrow-go#70), and callers choose the allocator, so pin here.
 type pinnedArrowExport struct {
 	pins        runtime.Pinner
 	release     *[0]byte
@@ -273,9 +275,9 @@ func duckdbGoReleasePinnedArrowArray(out *C.struct_ArrowArray) {
 	C.free(unsafe.Pointer(slot))
 	defer handle.Delete()
 
-	export := handle.Value().(*pinnedArrowExport)
-	defer export.pins.Unpin()
+	e := handle.Value().(*pinnedArrowExport)
+	defer e.pins.Unpin()
 	// Release Arrow's references while its buffers are still pinned.
-	out.release, out.private_data = export.release, export.privateData
+	out.release, out.private_data = e.release, e.privateData
 	cdata.ReleaseCArrowArray((*cdata.CArrowArray)(unsafe.Pointer(out)))
 }

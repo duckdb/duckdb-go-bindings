@@ -53,7 +53,8 @@ esac
 
 go test -mod=readonly -count=1 -tags="$tags" ./...
 # Only the bindings depend on the tags; brood's tests ran above.
-# Check that exported Go buffers stay pinned while DuckDB retains them.
+# cgocheck2 catches unpinned Go pointers stored in C memory, such as exported
+# Arrow buffers that DuckDB retains.
 GOEXPERIMENT="${GOEXPERIMENT:+$GOEXPERIMENT,}cgocheck2" \
 	go test -mod=readonly -count=1 -tags="${tags:+$tags,}debug_bindings,duckdb_arrow" .
 case "$mode" in

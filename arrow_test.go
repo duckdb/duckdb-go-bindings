@@ -16,7 +16,7 @@ import (
 func TestDataChunkFromArrowGoBufferLifetime(t *testing.T) {
 	conn := openTestConnection(t)
 	mem := &releaseCheckingAllocator{Allocator: memory.DefaultAllocator}
-	rec, alloc := newCheckedInt32Record(mem)
+	rec := newCheckedInt32Record(t, mem)
 	originalData := unsafe.Pointer(unsafe.SliceData(rec.Column(0).Data().Buffers()[1].Bytes()))
 	checkedRelease := false
 	mem.onFree = func(buf []byte) {
@@ -53,14 +53,11 @@ func TestDataChunkFromArrowGoBufferLifetime(t *testing.T) {
 	}()
 	<-released
 	require.True(t, checkedRelease, "Arrow's release must free the source buffers")
-	alloc.AssertSize(t, 0)
-	// Exercise the Pinner finalizer, which panics if any pins leaked.
-	runtime.GC()
 }
 
 func TestDataChunkFromArrowFailedImportReleasesBuffers(t *testing.T) {
 	conn := openTestConnection(t)
-	rec, alloc := newCheckedInt32Record(memory.DefaultAllocator)
+	rec := newCheckedInt32Record(t, memory.DefaultAllocator)
 	converted := requireArrowConvertedSchema(t, conn, rec.Schema())
 	defer DestroyArrowConvertedSchema(&converted)
 
@@ -71,20 +68,14 @@ func TestDataChunkFromArrowFailedImportReleasesBuffers(t *testing.T) {
 	rec.Release()
 	require.True(t, ErrorDataHasError(ed))
 	require.Nil(t, chunk.Ptr)
-	alloc.AssertSize(t, 0)
-	// Exercise the Pinner finalizer, which panics if any pins leaked.
-	runtime.GC()
 }
 
 func TestDataChunkFromArrowExportPanicReleasesPins(t *testing.T) {
-	rec, alloc := newCheckedInt32Record(memory.DefaultAllocator)
+	rec := newCheckedInt32Record(t, memory.DefaultAllocator)
 	require.PanicsWithValue(t, "export failed", func() {
 		DataChunkFromArrow(Connection{}, panicOnExportRecord{rec}, ArrowConvertedSchema{})
 	})
 	rec.Release()
-	alloc.AssertSize(t, 0)
-	// Exercise the Pinner finalizer after recovering from a failed export.
-	runtime.GC()
 }
 
 type panicOnExportRecord struct{ arrow.RecordBatch }
@@ -193,15 +184,24 @@ func requireArrowRoundTrip(
 	}
 }
 
-func newCheckedInt32Record(mem memory.Allocator) (arrow.RecordBatch, *memory.CheckedAllocator) {
+// newCheckedInt32Record returns a record whose buffers and pins must all be
+// released by the end of the test.
+func newCheckedInt32Record(t *testing.T, mem memory.Allocator) arrow.RecordBatch {
+	t.Helper()
+
 	alloc := memory.NewCheckedAllocator(mem)
+	t.Cleanup(func() {
+		alloc.AssertSize(t, 0)
+		// Exercise the Pinner finalizer, which panics if any pins leaked.
+		runtime.GC()
+	})
 	builder := array.NewInt32Builder(alloc)
 	defer builder.Release()
 	builder.Append(42)
 	col := builder.NewInt32Array()
 	defer col.Release()
 	schema := arrow.NewSchema([]arrow.Field{{Name: "value", Type: arrow.PrimitiveTypes.Int32}}, nil)
-	return array.NewRecordBatch(schema, []arrow.Array{col}, 1), alloc
+	return array.NewRecordBatch(schema, []arrow.Array{col}, 1)
 }
 
 func newPrimitiveStringRecord(
