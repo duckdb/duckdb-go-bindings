@@ -67,12 +67,12 @@ jobs:
           RCLONE_CONFIG_REMOTE_REGION: auto
           RCLONE_CONFIG_REMOTE_NO_CHECK_BUCKET: "true"
         run: make publish.libs
-      # The bucket can't be listed through the public origin, so show what it
-      # holds, also after a failed or partial upload.
+      # The bucket can't be listed through the public origin, so show the
+      # published modules, also after a failed or partial upload.
       - name: List the published modules
         if: ${{ !cancelled() && steps.rclone.outcome == 'success' }}
         env: *bucket
-        run: rclone tree --size --modtime "$LIB_DESTINATION"
+        run: rclone tree --size --human-readable "$LIB_DESTINATION/modules/go.duckdb.org/libduckdb"
       # Pushes made with the workflow token don't trigger workflows.
       - name: Test the pin commit
         env:
