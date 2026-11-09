@@ -198,3 +198,12 @@ func TestVariantLogicalType(t *testing.T) {
 
 	require.Equal(t, TypeVariant, GetTypeId(variantT))
 }
+
+var benchVectorSize IdxT
+
+func BenchmarkVectorSize(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		benchVectorSize = VectorSize()
+	}
+}

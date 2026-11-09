@@ -10,8 +10,11 @@ import "C"
 
 import "unsafe"
 
+// The vector size is fixed when DuckDB is built, including custom builds.
+var vectorSize = C.duckdb_vector_size()
+
 func VectorSize() IdxT {
-	return C.duckdb_vector_size()
+	return vectorSize
 }
 
 // CreateVector wraps duckdb_create_vector.
