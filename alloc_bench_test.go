@@ -101,6 +101,14 @@ func BenchmarkCreateVarchar_destroy(b *testing.B) {
 	}
 }
 
+func BenchmarkCreateErrorData_destroy(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		ed := CreateErrorData(ErrorTypeInvalidInput, "invalid input")
+		DestroyErrorData(&ed)
+	}
+}
+
 func BenchmarkCreateVarcharLength_destroy(b *testing.B) {
 	const s = "varchar-length-variant"
 	b.ReportAllocs()
