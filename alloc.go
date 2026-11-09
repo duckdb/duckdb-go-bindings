@@ -32,10 +32,13 @@ const (
 // The return value must be freed with Free.
 func allocLogicalTypes(types []LogicalType) *C.duckdb_logical_type {
 	count := len(types)
+	// Zero pointer slots before Go writes them; the Go runtime can otherwise
+	// mistake stale bytes for Go pointers.
 	typesPtr := (*C.duckdb_logical_type)(C.calloc(C.size_t(count), logicalTypeSize))
 
+	slots := unsafe.Slice(typesPtr, count)
 	for i, t := range types {
-		C.duckdb_go_bindings_set_logical_type(typesPtr, t.data(), IdxT(i))
+		slots[i] = t.data()
 	}
 
 	return typesPtr
@@ -44,10 +47,13 @@ func allocLogicalTypes(types []LogicalType) *C.duckdb_logical_type {
 // The return value must be freed with Free.
 func allocValues(values []Value) *C.duckdb_value {
 	count := len(values)
+	// Zero pointer slots before Go writes them; the Go runtime can otherwise
+	// mistake stale bytes for Go pointers.
 	valuesPtr := (*C.duckdb_value)(C.calloc(C.size_t(count), valueSize))
 
+	slots := unsafe.Slice(valuesPtr, count)
 	for i, val := range values {
-		C.duckdb_go_bindings_set_value(valuesPtr, val.data(), IdxT(i))
+		slots[i] = val.data()
 	}
 
 	return valuesPtr
@@ -80,6 +86,8 @@ func allocNames(names []string) nameListAlloc {
 		blobSize += C.size_t(len(s)) + 1
 	}
 
+	// Zero pointer slots before Go writes them; the Go runtime can otherwise
+	// mistake stale bytes for Go pointers.
 	arrMem := unsafe.Pointer(C.calloc(C.size_t(n), charSize))
 	if arrMem == nil {
 		panic("duckdb-go-bindings: calloc name array returned nil")
@@ -91,25 +99,18 @@ func allocNames(names []string) nameListAlloc {
 		Free(arrMem)
 		panic("duckdb-go-bindings: duckdb_malloc name blob returned nil")
 	}
-	blob := (*C.char)(blobMem)
 
-	var off uintptr
-	for i := 0; i < n; i++ {
-		s := names[i]
-		slen := len(s)
-		dest := unsafe.Add(unsafe.Pointer(blob), off)
-		if slen > 0 {
-			C.memcpy(unsafe.Pointer(dest), unsafe.Pointer(unsafe.StringData(s)), C.size_t(slen))
-		}
-		*(*byte)(unsafe.Add(dest, uintptr(slen))) = 0
-
-		slot := (**C.char)(unsafe.Add(unsafe.Pointer(arr), uintptr(i)*uintptr(charSize)))
-		*slot = (*C.char)(dest)
-
-		off += uintptr(slen + 1)
+	slots := unsafe.Slice(arr, n)
+	blob := unsafe.Slice((*byte)(blobMem), blobSize)
+	off := 0
+	for i, s := range names {
+		slots[i] = (*C.char)(unsafe.Pointer(&blob[off]))
+		off += copy(blob[off:], s)
+		blob[off] = 0
+		off++
 	}
 
-	return nameListAlloc{arr: arr, blob: blob}
+	return nameListAlloc{arr: arr, blob: (*C.char)(blobMem)}
 }
 
 var allocCounts syncMap

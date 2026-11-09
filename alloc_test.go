@@ -97,3 +97,29 @@ func TestTrackedResultIgnoresEmptyResult(t *testing.T) {
 	require.False(t, ok)
 	require.Zero(t, got)
 }
+
+func TestPackedNames(t *testing.T) {
+	defer VerifyAllocationCounters()
+	typ := CreateEnumType([]string{"", "plain", "Grüße", "nul\x00suffix"})
+	defer DestroyLogicalType(&typ)
+	for i, want := range []string{"", "plain", "Grüße", "nul"} {
+		require.Equal(t, want, EnumDictionaryValue(typ, IdxT(i)))
+	}
+}
+
+func TestPackedLogicalTypes(t *testing.T) {
+	defer VerifyAllocationCounters()
+	integerT := CreateLogicalType(TypeInteger)
+	defer DestroyLogicalType(&integerT)
+	varcharT := CreateLogicalType(TypeVarchar)
+	defer DestroyLogicalType(&varcharT)
+	typ := CreateStructType([]LogicalType{integerT, varcharT}, []string{"number", "text"})
+	defer DestroyLogicalType(&typ)
+	for i, want := range []Type{TypeInteger, TypeVarchar} {
+		child := StructTypeChildType(typ, IdxT(i))
+		require.Equal(t, want, GetTypeId(child))
+		DestroyLogicalType(&child)
+	}
+	require.Equal(t, "number", StructTypeChildName(typ, 0))
+	require.Equal(t, "text", StructTypeChildName(typ, 1))
+}
