@@ -24,28 +24,20 @@ case "$mode" in
 		export GOWORK=off GOPROXY="$MODULE_PROXY" GOMODCACHE="$MODULE_CACHE"
 		;;
 	static)
-		brood fetch
-		# An archive tolerates cgo repeating linker flags across packages.
-		# CC and AR may include command arguments.
-		# shellcheck disable=SC2086
-		${CC:-cc} -c "$NATIVE_DIR/static_extension_loader.c" -o "$NATIVE_DIR/loader.o"
-		# shellcheck disable=SC2086
-		${AR:-ar} rcs "$NATIVE_DIR/libduckdb_static_extension_loader.a" "$NATIVE_DIR/loader.o"
-		# The platform module's flags include -L for NATIVE_DIR.
-		flags=$(cd "$NATIVE_DIR" && GOWORK=off go list -f '{{join .CgoLDFLAGS " "}}' .)
-		export CGO_ENABLED=1 CGO_LDFLAGS="-lduckdb_static_extension_loader $flags"
+		static_env=$(./scripts/static-env.sh)
+		eval "$static_env"
 		tags="${tags:+$tags,}duckdb_use_static_lib"
 		;;
 	dynamic)
 		brood fetch-shared
-		export CGO_ENABLED=1 CGO_LDFLAGS="-L$DYNAMIC_DIR"
+		export CGO_ENABLED=1 CGO_LDFLAGS="\"-L$DYNAMIC_DIR\""
 		case "$PLATFORM" in
 			windows-*)
 				dynamic_path=$(cd "$DYNAMIC_DIR" && pwd)
 				export PATH="$dynamic_path:$PATH"
 				;;
 			# An rpath, since macOS SIP strips DYLD_* from child processes.
-			*) export CGO_LDFLAGS="$CGO_LDFLAGS -Wl,-rpath,$DYNAMIC_DIR" ;;
+			*) export CGO_LDFLAGS="$CGO_LDFLAGS \"-Wl,-rpath,$DYNAMIC_DIR\"" ;;
 		esac
 		tags="${tags:+$tags,}duckdb_use_lib"
 		;;
