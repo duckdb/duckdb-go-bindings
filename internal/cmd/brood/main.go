@@ -49,15 +49,15 @@ type artifact struct {
 // release is the manifest plus the settings derived from it and the environment.
 type release struct {
 	manifest
-	platforms    []string // sorted platform names, e.g. darwin-arm64
-	modulePrefix string   // platform module paths without the platform
-	work         string   // LIB_WORK, outside the checkout
-	goVersion    string   // go directive of the root module
+	modulePlatforms []string // sorted platforms published as prebuilt native modules
+	modulePrefix    string   // platform module paths without the platform
+	work            string   // LIB_WORK, outside the checkout
+	goVersion       string   // go directive of the root module
 }
 
 func main() {
 	commands := map[string]func(*release){
-		"fetch":        func(r *release) { r.stage(r.platform()) },
+		"fetch":        (*release).fetch,
 		"fetch-shared": func(r *release) { r.stageShared(r.platform()) },
 		"use":          (*release).use,
 		"env":          (*release).env,
@@ -100,7 +100,12 @@ func load() *release {
 			r.Platforms[platform] = a
 		}
 	}
-	r.platforms = slices.Sorted(maps.Keys(r.Platforms))
+	r.modulePlatforms = slices.Sorted(maps.Keys(r.Platforms))
+	r.modulePlatforms = slices.DeleteFunc(r.modulePlatforms, func(platform string) bool {
+		// ARM64's MSVC libraries require build-wide CRT configuration, not
+		// just the cgo directives of a prebuilt platform module.
+		return platform == "windows-arm64"
+	})
 	r.modulePrefix = strings.TrimPrefix(r.Origin, "https://") + "/" + modulePath
 	r.work = workDir()
 
@@ -172,6 +177,7 @@ func (r *release) testEnv() map[string]string {
 		"PLATFORM":       platform,
 		"NATIVE_DIR":     filepath.ToSlash(r.native(platform)),
 		"DYNAMIC_DIR":    filepath.ToSlash(r.dynamic(platform)),
+		"STATIC_LDFLAGS": strings.Join(ldflags(platform), " ") + " " + fmt.Sprintf("%q", "-L"+filepath.ToSlash(r.native(platform))),
 		"MODULE_PROXY":   r.localProxy(),
 		"MODULE_CACHE":   filepath.ToSlash(r.modcache()),
 		"GOPROXY":        cmp.Or(os.Getenv("GOPROXY"), r.Origin+"/modules,https://proxy.golang.org"),
@@ -181,11 +187,21 @@ func (r *release) testEnv() map[string]string {
 	}
 }
 
+// fetch stages static libraries for the header used to compile the bindings.
+func (r *release) fetch() {
+	platform := r.platform()
+	r.stage(platform)
+	checkSameHeader("include/duckdb.h", r.header(platform))
+}
+
 // use compiles against a staged build's header and replaces this platform's
 // native dependency in a local workspace. Go formats native Windows paths too.
 func (r *release) use() {
 	platform := r.platform()
-	r.stage(platform)
+	if platform == "windows-arm64" {
+		fail("windows-arm64 has no prebuilt module; build with duckdb_use_static_lib or duckdb_use_lib")
+	}
+	r.stageModule(platform)
 	copyFile(r.header(platform), "include/duckdb.h")
 	work := &modfile.WorkFile{Syntax: &modfile.FileSyntax{Name: "go.work"}}
 	check(work.AddGoStmt(r.goVersion))
@@ -197,7 +213,7 @@ func (r *release) use() {
 // packageModules writes every platform module to a module proxy tree in
 // LIB_WORK/modules.
 func (r *release) packageModules() {
-	for _, platform := range r.platforms {
+	for _, platform := range r.modulePlatforms {
 		if r.Platforms[platform].StaticSHA256 == "" {
 			fail("%s: packaging requires a pinned checksum; unset BASE_URL", platform)
 		}
@@ -212,9 +228,9 @@ func (r *release) packageModules() {
 	}
 
 	check(os.RemoveAll(r.modules()))
-	for _, platform := range r.platforms {
-		r.stage(platform)
-		checkSameHeader(r.header(r.platforms[0]), r.header(platform))
+	for _, platform := range r.modulePlatforms {
+		r.stageModule(platform)
+		checkSameHeader(r.header(r.modulePlatforms[0]), r.header(platform))
 
 		mod := module.Version{Path: r.module(platform), Version: r.Version}
 		dir := filepath.Join(r.modules(), mod.Path, "@v")
@@ -230,9 +246,9 @@ func (r *release) packageModules() {
 // pin points the root module at the packaged modules: header, platform
 // imports, go.mod and go.sum.
 func (r *release) pin() {
-	copyFile(r.header(r.platforms[0]), "include/duckdb.h")
+	copyFile(r.header(r.modulePlatforms[0]), "include/duckdb.h")
 	edit := []string{"mod", "edit"}
-	for _, platform := range r.platforms {
+	for _, platform := range r.modulePlatforms {
 		writeFile(r.rootPrebuilt(platform))
 		edit = append(edit, "-require="+r.module(platform)+"@"+r.Version)
 	}
@@ -258,7 +274,7 @@ func (r *release) upload() {
 		"--header-upload", "If-None-Match: *",
 		"--header-upload", "Cache-Control: public, max-age=31536000, immutable",
 		"--s3-upload-cutoff", "1G")
-	for _, platform := range r.platforms {
+	for _, platform := range r.modulePlatforms {
 		if status := httpStatus(r.infoURL(platform)); status != http.StatusOK {
 			fail("%s: HTTP %d after upload", r.infoURL(platform), status)
 		}
@@ -266,7 +282,7 @@ func (r *release) upload() {
 
 	// Each page names its own module path, so the go command trusts it without
 	// fetching a page for a shorter prefix.
-	for _, platform := range r.platforms {
+	for _, platform := range r.modulePlatforms {
 		page := filepath.Join(r.work, "go-import-"+platform+".html")
 		writeFile(page, fmt.Appendf(nil, "<!doctype html><meta name=\"go-import\" content=\"%s mod %s/modules\">\n", r.module(platform), r.Origin))
 		run(nil, rclone, "copyto", page, path.Join(dest, modulePath, platform),

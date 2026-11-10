@@ -34,6 +34,12 @@
       "shared": "windows-amd64",
       "static_sha256": "b900706bcd5501b94c90b86a23b941a18fa1a73094d414f5ca7e7637cfd9ceea",
       "shared_sha256": "2b83169128239de5f45fe21de80f99bf436e53aa4bb24020dd951a1ba8d4b95f"
+    },
+    "windows-arm64": {
+      "static": "windows-arm64",
+      "shared": "windows-arm64",
+      "static_sha256": "1f9ec424605b798003e9cb558d95ec70e334ad4f53260679c7cc3934bcc06dd1",
+      "shared_sha256": "159ce60eb587112b8c5f290b8beea56af5f13be4d13679de127ad9bfaafb7447"
     }
   },
   "origin": "https://go.duckdb.org"
