@@ -32,6 +32,7 @@ func TestStringTData(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			VectorAssignStringElement(vec, 0, tc.value)
 			strT := (*StringT)(VectorGetData(vec))
+			require.Equal(t, uint32(len(tc.value)), StringTLength(*strT))
 			got := StringTData(strT)
 			require.Equal(t, tc.value, got)
 

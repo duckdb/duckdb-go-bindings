@@ -8,6 +8,7 @@ package duckdb_go_bindings
 import "C"
 
 import (
+	"encoding/binary"
 	"strings"
 	"unsafe"
 )
@@ -64,8 +65,8 @@ func StringIsInlined(strT StringT) bool {
 }
 
 func StringTLength(strT StringT) uint32 {
-	length := C.duckdb_string_t_length(strT)
-	return uint32(length)
+	// Both public duckdb_string_t union members start with a uint32 length.
+	return binary.NativeEndian.Uint32(strT.value[:])
 }
 
 func StringTData(strT *StringT) string {
