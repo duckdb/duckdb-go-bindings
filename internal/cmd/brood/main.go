@@ -57,7 +57,7 @@ type release struct {
 
 func main() {
 	commands := map[string]func(*release){
-		"fetch":        func(r *release) { r.stage(r.platform()) },
+		"fetch":        (*release).fetch,
 		"fetch-shared": func(r *release) { r.stageShared(r.platform()) },
 		"use":          (*release).use,
 		"env":          (*release).env,
@@ -185,6 +185,13 @@ func (r *release) testEnv() map[string]string {
 		"DUCKDB_VERSION": cmp.Or(os.Getenv("DUCKDB_VERSION"), r.DuckDBVersion),
 		"DUCKDB_SHA":     cmp.Or(os.Getenv("DUCKDB_SHA"), r.Source),
 	}
+}
+
+// fetch stages static libraries for the header used to compile the bindings.
+func (r *release) fetch() {
+	platform := r.platform()
+	r.stage(platform)
+	checkSameHeader("include/duckdb.h", r.header(platform))
 }
 
 // use compiles against a staged build's header and replaces this platform's

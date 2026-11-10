@@ -111,7 +111,7 @@ func TestWindowsARM64Artifacts(t *testing.T) {
 	require.Contains(t, env["STATIC_LDFLAGS"], "-Wl,--entry=mainCRTStartup")
 	require.Contains(t, env["STATIC_LDFLAGS"], "-llibucrt")
 	require.NotContains(t, env["STATIC_LDFLAGS"], "-lstdc++")
-	r.stage(r.platform())
+	r.fetch() // The MSVC archive's CRLF header matches the installed LF header.
 	require.FileExists(t, filepath.Join(r.native("windows-arm64"), "duckdb_static.lib"))
 	require.FileExists(t, filepath.Join(r.native("windows-arm64"), "json_extension.lib"))
 	require.FileExists(t, filepath.Join(r.native("windows-arm64"), "static_extension_loader.c"))
@@ -124,6 +124,20 @@ func TestWindowsARM64Artifacts(t *testing.T) {
 	r.packageModules()
 	require.FileExists(t, filepath.Join(r.modules(), "example.com/native/linux-amd64/@v/v0.0.1.zip"))
 	require.NoDirExists(t, filepath.Join(r.modules(), "example.com/native/windows-arm64"))
+}
+
+func TestFetchStaticHeader(t *testing.T) {
+	for _, platform := range []string{"linux-amd64", "windows-arm64"} {
+		t.Run(platform, func(t *testing.T) {
+			r := fixtureRelease(t, platform)
+			t.Setenv("PLATFORM", platform)
+			writeFile("include/duckdb.h", []byte("header\n"))
+			r.fetch() // Accept matching headers, including the MSVC archive's CRLF.
+
+			writeFile("include/duckdb.h", []byte("incompatible header\n"))
+			requireFailure(t, "differ", r.fetch)
+		})
+	}
 }
 
 func fixtureRelease(t *testing.T, platform string) *release {
