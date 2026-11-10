@@ -4,14 +4,16 @@ package duckdb_go_bindings
 #include <duckdb.h>
 #include <stdlib.h>
 #include <string.h>
-#include <duckdb_go_bindings.h>
 */
 import "C"
 
 import "unsafe"
 
+// The vector size is fixed when DuckDB is built, including custom builds.
+var vectorSize = C.duckdb_vector_size()
+
 func VectorSize() IdxT {
-	return C.duckdb_vector_size()
+	return vectorSize
 }
 
 // CreateVector wraps duckdb_create_vector.
@@ -124,24 +126,4 @@ func VectorReferenceValue(vec Vector, v Value) {
 
 func VectorReferenceVector(toVec Vector, fromVec Vector) {
 	C.duckdb_vector_reference_vector(toVec.data(), fromVec.data())
-}
-
-func ValidityRowIsValid(maskPtr unsafe.Pointer, row IdxT) bool {
-	mask := (*C.uint64_t)(maskPtr)
-	return bool(C.duckdb_validity_row_is_valid(mask, row))
-}
-
-func ValiditySetRowValidity(maskPtr unsafe.Pointer, row IdxT, valid bool) {
-	mask := (*C.uint64_t)(maskPtr)
-	C.duckdb_validity_set_row_validity(mask, row, C.bool(valid))
-}
-
-func ValiditySetRowInvalid(maskPtr unsafe.Pointer, row IdxT) {
-	mask := (*C.uint64_t)(maskPtr)
-	C.duckdb_validity_set_row_invalid(mask, row)
-}
-
-func ValiditySetRowValid(maskPtr unsafe.Pointer, row IdxT) {
-	mask := (*C.uint64_t)(maskPtr)
-	C.duckdb_validity_set_row_valid(mask, row)
 }

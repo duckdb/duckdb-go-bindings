@@ -4,7 +4,6 @@ package duckdb_go_bindings
 #include <duckdb.h>
 #include <stdlib.h>
 #include <string.h>
-#include <duckdb_go_bindings.h>
 
 // DuckDB v2.0.0 deletes ErrorDataWrapper and clears the slot without retaining it.
 // ErrorData owns only scalars, strings and a string map, with no user callbacks.

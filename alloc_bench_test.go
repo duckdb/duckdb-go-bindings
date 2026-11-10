@@ -3,6 +3,7 @@ package duckdb_go_bindings
 import (
 	"fmt"
 	"testing"
+	"unsafe"
 
 	"github.com/stretchr/testify/require"
 )
@@ -143,5 +144,84 @@ func BenchmarkCreateEnumType_64Names(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		lt := CreateEnumType(names)
 		DestroyLogicalType(&lt)
+	}
+}
+
+func BenchmarkAllocNames(b *testing.B) {
+	for _, n := range []int{1, 8, 64} {
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			names := make([]string, n)
+			for i := range names {
+				names[i] = fmt.Sprintf("field_%02d", i)
+			}
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				freeNameList(allocNames(names))
+			}
+		})
+	}
+}
+
+func BenchmarkAllocLogicalTypes(b *testing.B) {
+	typ := CreateLogicalType(TypeInteger)
+	defer DestroyLogicalType(&typ)
+	benchmarkAllocHandles(b, typ, allocLogicalTypes)
+}
+
+func BenchmarkAllocValues(b *testing.B) {
+	v := CreateInt32(42)
+	defer DestroyValue(&v)
+	benchmarkAllocHandles(b, v, allocValues)
+}
+
+func benchmarkAllocHandles[T, P any](b *testing.B, handle T, alloc func([]T) *P) {
+	b.Helper()
+	for _, n := range []int{1, 8, 64} {
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			handles := make([]T, n)
+			for i := range handles {
+				handles[i] = handle
+			}
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				Free(unsafe.Pointer(alloc(handles)))
+			}
+		})
+	}
+}
+
+func BenchmarkCreateStructType_64Fields(b *testing.B) {
+	typ := CreateLogicalType(TypeInteger)
+	defer DestroyLogicalType(&typ)
+	types := make([]LogicalType, 64)
+	names := make([]string, 64)
+	for i := range types {
+		types[i] = typ
+		names[i] = fmt.Sprintf("field_%02d", i)
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		result := CreateStructType(types, names)
+		DestroyLogicalType(&result)
+	}
+}
+
+func BenchmarkCreateListValue_64Items(b *testing.B) {
+	typ := CreateLogicalType(TypeInteger)
+	defer DestroyLogicalType(&typ)
+	v := CreateInt32(42)
+	defer DestroyValue(&v)
+	values := make([]Value, 64)
+	for i := range values {
+		values[i] = v
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		result := CreateListValue(typ, values)
+		DestroyValue(&result)
 	}
 }

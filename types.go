@@ -4,11 +4,14 @@ package duckdb_go_bindings
 #include <duckdb.h>
 #include <stdlib.h>
 #include <string.h>
-#include <duckdb_go_bindings.h>
 */
 import "C"
 
-import "unsafe"
+import (
+	"encoding/binary"
+	"strings"
+	"unsafe"
+)
 
 type IdxT = C.idx_t
 
@@ -62,14 +65,13 @@ func StringIsInlined(strT StringT) bool {
 }
 
 func StringTLength(strT StringT) uint32 {
-	length := C.duckdb_string_t_length(strT)
-	return uint32(length)
+	// Both public duckdb_string_t union members start with a uint32 length.
+	return binary.NativeEndian.Uint32(strT.value[:])
 }
 
 func StringTData(strT *StringT) string {
-	length := C.int(StringTLength(*strT))
-	ptr := unsafe.Pointer(C.duckdb_string_t_data(strT))
-	return string(C.GoBytes(ptr, length))
+	data := (*byte)(unsafe.Pointer(C.duckdb_string_t_data(strT)))
+	return strings.Clone(unsafe.String(data, StringTLength(*strT)))
 }
 
 // Helper functions for types without internal pointers:
