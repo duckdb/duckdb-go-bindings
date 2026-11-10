@@ -26,4 +26,8 @@ test.static:
 test.dynamic:
 	./scripts/test.sh dynamic
 
-.PHONY: use.libs unuse.libs update.libs publish.libs test test.static test.dynamic
+# The race detector also enables checkptr for unsafe pointer conversions.
+test.race:
+	GOFLAGS="$(GOFLAGS) -race" ./scripts/test.sh
+
+.PHONY: use.libs unuse.libs update.libs publish.libs test test.static test.dynamic test.race
