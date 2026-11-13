@@ -126,6 +126,16 @@ The test targets run `scripts/test.sh`, which also runs directly from the
 repository root with `prebuilt` (the default), `static`, `dynamic` or
 `packaged` (used by `make update.libs`).
 
+## Updating Go dependencies
+
+Update dependencies without raising the minimum Go version:
+
+```bash
+go_version=$(go list -m -f '{{.GoVersion}}' | sed -E 's/^([0-9]+\.[0-9]+)$/\1.0/')
+go get -u -t ./... "go@$go_version" toolchain@none
+go mod tidy
+```
+
 ## Updating native libraries
 
 The native libraries are published as one Go module per platform, outside this
