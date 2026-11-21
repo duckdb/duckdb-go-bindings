@@ -1,45 +1,45 @@
 {
-  "version": "v0.20000.0",
-  "duckdb_version": "v2.0.0",
-  "source": "d54cbbe3df17e8e5ce68312f483b4155836112aa",
-  "time": "2026-10-21T13:16:16Z",
-  "base_url": "https://github.com/duckdb/duckdb/releases/download/v2.0.0",
+  "version": "v0.20001.0",
+  "duckdb_version": "v2.0.1",
+  "source": "8d78114e90a53823803660bf821f6073ac87da8c",
+  "time": "2026-11-20T13:34:16Z",
+  "base_url": "https://github.com/duckdb/duckdb/releases/download/v2.0.1",
   "platforms": {
     "darwin-amd64": {
       "static": "osx-amd64",
       "shared": "osx-universal",
-      "static_sha256": "7e6101ddc8de73e8dcc66f790e658e07891165d026992b40ceba20e50b01f8ec",
-      "shared_sha256": "14cd63180614cfd961f7959146ecd9087527ff20b67311efdc3fa1c29c18204d"
+      "static_sha256": "c4458122a44182f8e790d2b1e731139d7f8437ce0b14fe5a0e461612979db76b",
+      "shared_sha256": "9a4be5a2a31ad5bb8c92bf37f18d59b9c10a79b392d7848cabd6eb2e05837449"
     },
     "darwin-arm64": {
       "static": "osx-arm64",
       "shared": "osx-universal",
-      "static_sha256": "c3a571e6d4a0da97534c631df463ab13c07f8cf78049625f5df936b7beaab9ce",
-      "shared_sha256": "14cd63180614cfd961f7959146ecd9087527ff20b67311efdc3fa1c29c18204d"
+      "static_sha256": "adaada35202db67d010b06277320aa700f1313d9997b549a948349c9fd749a41",
+      "shared_sha256": "9a4be5a2a31ad5bb8c92bf37f18d59b9c10a79b392d7848cabd6eb2e05837449"
     },
     "linux-amd64": {
       "static": "linux-amd64",
       "shared": "linux-amd64",
-      "static_sha256": "112d62c980f5447cd303a70b3dacbc09acd41ccb4ef6d154e8629f543a0f8568",
-      "shared_sha256": "993ad89e7dfca66cd6da994c2cad090c2fc160ddf9f550498a098ab4bb13cfb1"
+      "static_sha256": "2d5655fd5948dfb0cd16df5fc8f7cdf0b37948374cf0629af995cf4a5e3a4c82",
+      "shared_sha256": "e25502612fed533a243b61f23a2a574daad030e7e88906222a5f0ab30d06769e"
     },
     "linux-arm64": {
       "static": "linux-arm64",
       "shared": "linux-arm64",
-      "static_sha256": "8171b4842e68a85b2e82b342d3bf7b542a88fd6666e0c18438d7b459012494ee",
-      "shared_sha256": "c60eecf91143ca6bbac55c4f4d40dc22520488b0ac257c86e0fe9a2b451cf2b7"
+      "static_sha256": "3d581ff935f1836363cc459e640737cdc1892ab3ed69e74853e93f01d9d071f0",
+      "shared_sha256": "811e8b4d0226f5e531f583aadc798070ffb33b350e3823be563a2ebeb2c68593"
     },
     "windows-amd64": {
       "static": "windows-mingw",
       "shared": "windows-amd64",
-      "static_sha256": "b900706bcd5501b94c90b86a23b941a18fa1a73094d414f5ca7e7637cfd9ceea",
-      "shared_sha256": "2b83169128239de5f45fe21de80f99bf436e53aa4bb24020dd951a1ba8d4b95f"
+      "static_sha256": "99a432db9e0edca8ddde279747f3dbd56605492f5a5d7eca879525a4c68f772c",
+      "shared_sha256": "d51f23831423b82418ee1d5bae324484f9fbe4a2c2424fa5b6be3392453c62ce"
     },
     "windows-arm64": {
       "static": "windows-arm64",
       "shared": "windows-arm64",
-      "static_sha256": "1f9ec424605b798003e9cb558d95ec70e334ad4f53260679c7cc3934bcc06dd1",
-      "shared_sha256": "159ce60eb587112b8c5f290b8beea56af5f13be4d13679de127ad9bfaafb7447"
+      "static_sha256": "e4804c699d6d1d693e0e42c6af4cd0ec7ab9617bc05609acde3aa3ebf252c652",
+      "shared_sha256": "8b5a2b23f78f96bcf8b22204629f02f6b49e08383717338c6b5f951874d1f09e"
     }
   },
   "origin": "https://go.duckdb.org"
