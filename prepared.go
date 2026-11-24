@@ -186,11 +186,11 @@ func BindVarcharLength(preparedStmt PreparedStatement, index IdxT, v string, len
 }
 
 func BindBlob(preparedStmt PreparedStatement, index IdxT, v []byte) State {
-	var data unsafe.Pointer
-	if len(v) > 0 {
-		data = unsafe.Pointer(&v[0])
+	if len(v) == 0 {
+		return C.duckdb_bind_blob(preparedStmt.data(), index, nil, 0)
 	}
-	return C.duckdb_bind_blob(preparedStmt.data(), index, data, IdxT(len(v)))
+	// Take the address in the cgo call so checks inspect v, not its containing Go allocation.
+	return C.duckdb_bind_blob(preparedStmt.data(), index, unsafe.Pointer(&v[0]), IdxT(len(v)))
 }
 
 func BindNull(preparedStmt PreparedStatement, index IdxT) State {

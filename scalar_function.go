@@ -53,6 +53,13 @@ func ScalarFunctionSetReturnType(f ScalarFunction, logicalType LogicalType) {
 	C.duckdb_scalar_function_set_return_type(f.data(), logicalType.data())
 }
 
+// ScalarFunctionSetExtraInfo wraps duckdb_scalar_function_set_extra_info.
+// DuckDB retains extraInfoPtr after this call. When releasing the data, it calls
+// callbackPtr if non-nil.
+// Use C-allocated memory or pin Go memory with runtime.Pinner. Keep all Go memory
+// C can access pinned until release; the bindings do not pin it.
+// Prefer standalone Go allocations: cgo can scan the containing allocation and
+// reject unrelated unpinned Go pointers.
 func ScalarFunctionSetExtraInfo(f ScalarFunction, extraInfoPtr unsafe.Pointer, callbackPtr unsafe.Pointer) {
 	callback := C.duckdb_delete_callback_t(callbackPtr)
 	C.duckdb_scalar_function_set_extra_info(f.data(), extraInfoPtr, callback)
@@ -63,6 +70,15 @@ func ScalarFunctionSetBind(f ScalarFunction, callbackPtr unsafe.Pointer) {
 	C.duckdb_scalar_function_set_bind(f.data(), callback)
 }
 
+// ScalarFunctionSetBindData wraps duckdb_scalar_function_set_bind_data.
+// DuckDB retains bindDataPtr after this call. When releasing the data, it calls
+// callbackPtr if non-nil.
+// DuckDB also releases each copy returned by the ScalarFunctionSetBindDataCopy
+// callback with callbackPtr, and the same requirements apply to each copy.
+// Use C-allocated memory or pin Go memory with runtime.Pinner. Keep all Go memory
+// C can access pinned until release; the bindings do not pin it.
+// Prefer standalone Go allocations: cgo can scan the containing allocation and
+// reject unrelated unpinned Go pointers.
 func ScalarFunctionSetBindData(info BindInfo, bindDataPtr unsafe.Pointer, callbackPtr unsafe.Pointer) {
 	callback := C.duckdb_delete_callback_t(callbackPtr)
 	C.duckdb_scalar_function_set_bind_data(info.data(), bindDataPtr, callback)

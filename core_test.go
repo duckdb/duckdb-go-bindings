@@ -136,6 +136,47 @@ func TestLinkedSourceID(t *testing.T) {
 	require.Equal(t, int64(1), ValueInt64(&result, 0, 0))
 }
 
+func TestBindBlob(t *testing.T) {
+	conn := openTestConnection(t)
+	var stmt PreparedStatement
+	defer DestroyPrepare(&stmt)
+	require.Equal(t, StateSuccess, Prepare(conn, "SELECT $1::BLOB", &stmt))
+
+	// The buffer shares a Go allocation with an unrelated, unpinned pointer.
+	holder := &struct {
+		other *[64]byte
+		data  [8]byte
+	}{other: new([64]byte), data: [8]byte{0xaa, 0x00, 0x42, 0xff, 0x17, 0x80, 0xbb, 0xcc}}
+
+	for _, tc := range []struct {
+		name string
+		data []byte
+		want string
+	}{
+		{"nil", nil, ""},
+		{"empty", []byte{}, ""},
+		{"standalone", []byte{0x00, 0x42, 0xff, 0x17, 0x80}, "\x00\x42\xff\x17\x80"},
+		{"embedded", holder.data[1:6], "\x00\x42\xff\x17\x80"},
+		{"empty_embedded", holder.data[1:1], ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, StateSuccess, BindBlob(stmt, 1, tc.data))
+			// Binding copies the bytes, so later writes must not change the value.
+			clear(tc.data)
+			var result Result
+			defer DestroyResult(&result)
+			require.Equal(t, StateSuccess, ExecutePrepared(stmt, &result), ResultError(&result))
+			require.Equal(t, TypeBlob, ColumnType(&result, 0))
+			chunk := FetchChunk(result)
+			defer DestroyDataChunk(&chunk)
+			require.Equal(t, IdxT(1), DataChunkGetSize(chunk))
+			vec := DataChunkGetVector(chunk, 0)
+			require.True(t, ValidityRowIsValid(VectorGetValidity(vec), 0))
+			require.Equal(t, tc.want, StringTData((*StringT)(VectorGetData(vec))))
+		})
+	}
+}
+
 func TestGeometryLogicalType(t *testing.T) {
 	defer VerifyAllocationCounters()
 
