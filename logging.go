@@ -32,6 +32,13 @@ func LogStorageSetWriteLogEntry(logStorage LogStorage, callbackPtr unsafe.Pointe
 	C.duckdb_log_storage_set_write_log_entry(logStorage.data(), callback)
 }
 
+// LogStorageSetExtraData wraps duckdb_log_storage_set_extra_data.
+// DuckDB retains extraDataPtr after this call. When releasing the data, it calls
+// callbackPtr if non-nil.
+// Use C-allocated memory or pin Go memory with runtime.Pinner. Keep all Go memory
+// C can access pinned until release; the bindings do not pin it.
+// Prefer standalone Go allocations: cgo can scan the containing allocation and
+// reject unrelated unpinned Go pointers.
 func LogStorageSetExtraData(logStorage LogStorage, extraDataPtr unsafe.Pointer, callbackPtr unsafe.Pointer) {
 	callback := C.duckdb_delete_callback_t(callbackPtr)
 	C.duckdb_log_storage_set_extra_data(logStorage.data(), extraDataPtr, callback)

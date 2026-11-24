@@ -43,6 +43,13 @@ func TableFunctionAddNamedParameter(f TableFunction, name string, logicalType Lo
 	C.duckdb_table_function_add_named_parameter(f.data(), cName, logicalType.data())
 }
 
+// TableFunctionSetExtraInfo wraps duckdb_table_function_set_extra_info.
+// DuckDB retains extraInfoPtr after this call. When releasing the data, it calls
+// callbackPtr if non-nil.
+// Use C-allocated memory or pin Go memory with runtime.Pinner. Keep all Go memory
+// C can access pinned until release; the bindings do not pin it.
+// Prefer standalone Go allocations: cgo can scan the containing allocation and
+// reject unrelated unpinned Go pointers.
 func TableFunctionSetExtraInfo(f TableFunction, extraInfoPtr unsafe.Pointer, callbackPtr unsafe.Pointer) {
 	callback := C.duckdb_delete_callback_t(callbackPtr)
 	C.duckdb_table_function_set_extra_info(f.data(), extraInfoPtr, callback)
@@ -114,6 +121,13 @@ func BindGetNamedParameter(info BindInfo, name string) Value {
 	return trackedValue(v)
 }
 
+// BindSetBindData wraps duckdb_bind_set_bind_data.
+// DuckDB retains bindDataPtr after this call. When releasing the data, it calls
+// callbackPtr if non-nil.
+// Use C-allocated memory or pin Go memory with runtime.Pinner. Keep all Go memory
+// C can access pinned until release; the bindings do not pin it.
+// Prefer standalone Go allocations: cgo can scan the containing allocation and
+// reject unrelated unpinned Go pointers.
 func BindSetBindData(info BindInfo, bindDataPtr unsafe.Pointer, callbackPtr unsafe.Pointer) {
 	callback := C.duckdb_delete_callback_t(callbackPtr)
 	C.duckdb_bind_set_bind_data(info.data(), bindDataPtr, callback)
@@ -137,6 +151,13 @@ func InitGetBindData(info InitInfo) unsafe.Pointer {
 	return C.duckdb_init_get_bind_data(info.data())
 }
 
+// InitSetInitData wraps duckdb_init_set_init_data.
+// DuckDB retains initDataPtr after this call. When releasing the data, it calls
+// callbackPtr if non-nil.
+// Use C-allocated memory or pin Go memory with runtime.Pinner. Keep all Go memory
+// C can access pinned until release; the bindings do not pin it.
+// Prefer standalone Go allocations: cgo can scan the containing allocation and
+// reject unrelated unpinned Go pointers.
 func InitSetInitData(info InitInfo, initDataPtr unsafe.Pointer, callbackPtr unsafe.Pointer) {
 	callback := C.duckdb_delete_callback_t(callbackPtr)
 	C.duckdb_init_set_init_data(info.data(), initDataPtr, callback)
