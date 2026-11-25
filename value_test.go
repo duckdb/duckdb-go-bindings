@@ -6,6 +6,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestCreateVarcharLength(t *testing.T) {
+	defer VerifyAllocationCounters()
+	const str = "prefix"
+	for _, length := range []IdxT{0, 2, 3} {
+		v := CreateVarcharLength(str[:3], length)
+		defer DestroyValue(&v)
+		require.NotNil(t, v.Ptr)
+		require.Equal(t, str[:length], GetVarchar(v))
+	}
+	v := CreateVarcharLength(str[:3], 4)
+	defer DestroyValue(&v)
+	require.Nil(t, v.Ptr)
+}
+
 func TestTimestampTZNS(t *testing.T) {
 	defer VerifyAllocationCounters()
 

@@ -136,6 +136,24 @@ func TestLinkedSourceID(t *testing.T) {
 	require.Equal(t, int64(1), ValueInt64(&result, 0, 0))
 }
 
+func TestBindVarcharLength(t *testing.T) {
+	conn := openTestConnection(t)
+	var stmt PreparedStatement
+	defer DestroyPrepare(&stmt)
+	require.Equal(t, StateSuccess, Prepare(conn, "SELECT $1::VARCHAR", &stmt))
+
+	const str = "a\x00bcd"
+	require.Equal(t, StateSuccess, BindVarcharLength(stmt, 1, str[:4], 3))
+	require.Equal(t, StateError, BindVarcharLength(stmt, 1, str[:4], 5))
+	var result Result
+	defer DestroyResult(&result)
+	require.Equal(t, StateSuccess, ExecutePrepared(stmt, &result))
+	chunk := FetchChunk(result)
+	defer DestroyDataChunk(&chunk)
+	vec := DataChunkGetVector(chunk, 0)
+	require.Equal(t, str[:3], StringTData((*StringT)(VectorGetData(vec))))
+}
+
 func TestBindBlob(t *testing.T) {
 	conn := openTestConnection(t)
 	var stmt PreparedStatement
