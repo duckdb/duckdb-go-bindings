@@ -171,6 +171,12 @@ func DestroyArrowConvertedSchema(schema *ArrowConvertedSchema) {
 	schema.Ptr = nil
 }
 
+// WARNING: Embedding an Arrow output pointer slot or stream header in a Go
+// struct can trigger a cgo panic. The pointer check can find an unpinned Go pointer in
+// another field. Use C memory for the QueryArrowSchema and QueryArrowArray
+// output slots and the ArrowScan stream header. Keep the header alive while
+// DuckDB can use the view.
+
 // Deprecated: use new Arrow interface functions instead. (NewArrowSchema, DataChunkToArrowArray, SchemaFromArrow, DataChunkFromArrow, DestroyArrowConvertedSchema)
 func QueryArrowSchema(arrow Arrow, outSchema *ArrowSchema) State {
 	return C.duckdb_query_arrow_schema(arrow.data(), (*C.duckdb_arrow_schema)(outSchema.Ptr))
