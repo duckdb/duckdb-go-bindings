@@ -27,8 +27,12 @@ func CreateVarchar(str string) Value {
 }
 
 // CreateVarcharLength wraps duckdb_create_varchar_length.
+// It returns a Value with a nil Ptr if length exceeds len(str) in bytes.
 // The return value must be destroyed with DestroyValue.
 func CreateVarcharLength(str string, length IdxT) Value {
+	if length > IdxT(len(str)) {
+		return Value{}
+	}
 	var cStr *C.char
 	if length > 0 {
 		cStr = (*C.char)(unsafe.Pointer(unsafe.StringData(str)))

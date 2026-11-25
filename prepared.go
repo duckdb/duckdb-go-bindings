@@ -177,7 +177,11 @@ func BindVarchar(preparedStmt PreparedStatement, index IdxT, v string) State {
 	return BindVarcharLength(preparedStmt, index, v, IdxT(len(v)))
 }
 
+// BindVarcharLength binds the first length bytes of v and returns StateError if length exceeds len(v).
 func BindVarcharLength(preparedStmt PreparedStatement, index IdxT, v string, length IdxT) State {
+	if length > IdxT(len(v)) {
+		return StateError
+	}
 	var cStr *C.char
 	if length > 0 {
 		cStr = (*C.char)(unsafe.Pointer(unsafe.StringData(v)))
